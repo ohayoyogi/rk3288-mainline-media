@@ -75,7 +75,8 @@ hdmi)
 	# 1080p up to 30 Hz but not 1080p60, which does not fit 2 lanes at
 	# 972 Mbit/s. Its checksums are wrong, hence --fix-edid-checksums.
 	# Without the file, a stock HDMI EDID.
-	EDID=$(dirname "$0")/edid-tc358743.txt
+	# EDID=.../edid-tc358743-1080p50.txt for 1080p50 (scripts/make-edid-1080p50.py)
+	EDID=${EDID:-$(dirname "$0")/edid-tc358743.txt}
 	if [ -f "$EDID" ]; then
 		v4l2-ctl -d "$S" --set-edid=pad=0,file="$EDID" --fix-edid-checksums
 	else
