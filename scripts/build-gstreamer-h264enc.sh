@@ -12,7 +12,7 @@
 #   lib/libgstcodecs-1.0.so*, lib/libgstcodecparsers-1.0.so*   (newer than 1.24's)
 #   lib/gstreamer-1.0/libgstv4l2codecs.so
 # On the board: mkdir -p ~/h264enc/gst && tar -C ~/h264enc/gst -xzf gst-h264enc.tar.gz
-# kvm.py points GST_PLUGIN_PATH / LD_LIBRARY_PATH there (--gst-dir). Only
+# kvm.py (simplekvm) points GST_PLUGIN_PATH / LD_LIBRARY_PATH there (--gst-dir). Only
 # these libraries go into LD_LIBRARY_PATH: shipping the other libgst*-bad
 # libraries breaks the system plugins (h264parse etc.).
 # Runtime packages: gstreamer1.0-plugins-base / -good / -bad, libgudev-1.0-0.

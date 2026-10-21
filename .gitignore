@@ -1,8 +1,4 @@
 # build outputs
 __pycache__/
 *.pyc
-firmware/kvm-hid/out/
 patches/camera/dt/*.dtbo
-
-# third-party documents and local test captures (not ours to publish)
-references/

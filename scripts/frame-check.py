@@ -6,7 +6,7 @@
 A frame counts as stale when it is nearly identical, noise included (mean
 absolute difference < 0.5 on a sparse grid), to one of the 2..12 frames
 before it: what the rkisp1 MI_CTRL reset and v4l2src io-mode=auto
-problems looked like (NOTES.md).
+problems looked like.
 """
 import argparse
 import struct
