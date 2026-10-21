@@ -1,0 +1,60 @@
+--- a/meson.build
++++ b/meson.build
+@@ -1,5 +1,5 @@
+ project('gst-plugins-bad', 'c', 'cpp',
+-  version : '1.25.0.1',
++  version : '1.24.2.1',
+   meson_version : '>= 1.1',
+   default_options : [ 'warning_level=1',
+                       'buildtype=debugoptimized' ])
+--- a/sys/v4l2codecs/gstv4l2format.c
++++ b/sys/v4l2codecs/gstv4l2format.c
+@@ -35,6 +35,7 @@
+   {V4L2_PIX_FMT_NV12M, 2, GST_VIDEO_FORMAT_NV12, 8, 420},
+   {V4L2_PIX_FMT_NV12, 1, GST_VIDEO_FORMAT_NV12, 8, 420},
+   {V4L2_PIX_FMT_YUYV, 1, GST_VIDEO_FORMAT_YUY2, 8, 422},
++  {V4L2_PIX_FMT_UYVY, 1, GST_VIDEO_FORMAT_UYVY, 8, 422},
+   {V4L2_PIX_FMT_SUNXI_TILED_NV12, 1, GST_VIDEO_FORMAT_NV12_32L32, 8, 422},
+   {V4L2_PIX_FMT_NV12_4L4, 1, GST_VIDEO_FORMAT_NV12_4L4, 8, 420},
+   {V4L2_PIX_FMT_MM21, 2, GST_VIDEO_FORMAT_NV12_16L32S, 8, 420},
+--- a/sys/v4l2codecs/gstv4l2format.h
++++ b/sys/v4l2codecs/gstv4l2format.h
+@@ -26,7 +26,7 @@
+ 
+ #define GST_V4L2_DEFAULT_VIDEO_FORMATS "{ " \
+   "P010_10LE, NV12_10LE40_4L4, MT2110T, MT2110R," \
+-  "NV12, YUY2, NV12_4L4, NV12_32L32, NV12_16L32S, I420," \
++  "NV12, YUY2, UYVY, NV12_4L4, NV12_32L32, NV12_16L32S, I420," \
+   "RGB16, BGRx, RGBx, xBGR, xRGB" \
+   "}"
+ 
+--- a/sys/v4l2codecs/gstv4l2codech264enc.c
++++ b/sys/v4l2codecs/gstv4l2codech264enc.c
+@@ -523,6 +523,18 @@
+   self->sps.vui_parameters.num_units_in_tick = state->info.fps_d;
+   self->sps.vui_parameters.time_scale = state->info.fps_n * 2;
+ 
++  /* No B-frames and a single reference: tell decoders they may output each
++   * picture immediately. Without this a decoder has to assume reordering and
++   * holds up to a DPB worth of frames (5 at 720p L3.1, ~170 ms at 30 fps). */
++  self->sps.vui_parameters.bitstream_restriction_flag = 1;
++  self->sps.vui_parameters.motion_vectors_over_pic_boundaries_flag = 1;
++  self->sps.vui_parameters.max_bytes_per_pic_denom = 0;
++  self->sps.vui_parameters.max_bits_per_mb_denom = 0;
++  self->sps.vui_parameters.log2_max_mv_length_horizontal = 15;
++  self->sps.vui_parameters.log2_max_mv_length_vertical = 15;
++  self->sps.vui_parameters.num_reorder_frames = 0;
++  self->sps.vui_parameters.max_dec_frame_buffering = 1;
++
+   /* PPS */
+   self->pps.id = 0;
+   self->pps.sequence = &self->sps;
+@@ -536,7 +548,7 @@
+   GValue qp_init = G_VALUE_INIT;
+   g_object_get_property (G_OBJECT (self), "quantizer", &qp_init);
+   self->qp_init = g_value_get_int (&qp_init);
+-  self->pps.chroma_qp_index_offset = 4;
++  self->pps.chroma_qp_index_offset = -3;
+   self->pps.pic_init_qp_minus26 = self->qp_init - 26;
+   self->pps.second_chroma_qp_index_offset = self->pps.chroma_qp_index_offset;
+   self->pps.deblocking_filter_control_present_flag = 1;

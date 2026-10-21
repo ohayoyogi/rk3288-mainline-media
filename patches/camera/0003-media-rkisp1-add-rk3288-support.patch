@@ -1,0 +1,68 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: ohayoyogi <77435669+ohayoyogi@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 02:38:18 +0900
+Subject: [PATCH] media: rkisp1: add rk3288 support
+
+The RK3288 ISP is the same V10 block as RK3399's, with a shared
+interrupt, and also needs the camera input pixel clock and the JPE
+clock running.
+
+Based on the 2020 RFC by Karthik Poduval (clock list and compatible).
+
+Link: https://patchwork.kernel.org/project/linux-media/list/?series=266737
+---
+ .../platform/rockchip/rkisp1/rkisp1-dev.c     | 31 +++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+
+diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c b/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c
+index dd114ab77..6b56e71b9 100644
+--- a/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c
++++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c
+@@ -515,6 +515,33 @@ static const struct rkisp1_info px30_isp_info = {
+ 	.max_height = 2448,
+ };
+ 
++static const char * const rk3288_isp_clks[] = {
++	"isp",
++	"aclk",
++	"hclk",
++	"pclk_in",
++	"jpe",
++};
++
++static const struct rkisp1_isr_data rk3288_isp_isrs[] = {
++	{ NULL, rkisp1_isr, BIT(RKISP1_IRQ_ISP) | BIT(RKISP1_IRQ_MI) | BIT(RKISP1_IRQ_MIPI) },
++};
++
++/* rk3288 has the same V10 ISP as rk3399, with one more clock pair */
++static const struct rkisp1_info rk3288_isp_info = {
++	.clks = rk3288_isp_clks,
++	.clk_size = ARRAY_SIZE(rk3288_isp_clks),
++	.isrs = rk3288_isp_isrs,
++	.isr_size = ARRAY_SIZE(rk3288_isp_isrs),
++	.isp_ver = RKISP1_V10,
++	.features = RKISP1_FEATURE_MIPI_CSI2
++		  | RKISP1_FEATURE_SELF_PATH
++		  | RKISP1_FEATURE_DUAL_CROP
++		  | RKISP1_FEATURE_BLS,
++	.max_width = 4416,
++	.max_height = 3312,
++};
++
+ static const char * const rk3399_isp_clks[] = {
+ 	"isp",
+ 	"aclk",
+@@ -567,6 +594,10 @@ static const struct of_device_id rkisp1_of_match[] = {
+ 		.compatible = "rockchip,px30-cif-isp",
+ 		.data = &px30_isp_info,
+ 	},
++	{
++		.compatible = "rockchip,rk3288-cif-isp",
++		.data = &rk3288_isp_info,
++	},
+ 	{
+ 		.compatible = "rockchip,rk3399-cif-isp",
+ 		.data = &rk3399_isp_info,
+-- 
+2.43.0
+

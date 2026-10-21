@@ -1,0 +1,22 @@
+// Tinker Board: run the microSD slot at plain high-speed (50 MHz, 3.3 V)
+// instead of UHS SDR104 (150 MHz, 1.8 V).
+//
+// On this board/card, SDR104 reads returned silently corrupted data
+// (4 of 10 cold reads of a 30 MB file had a different md5, no CRC errors).
+//
+// Install: sudo armbian-add-overlay tinker-sdmmc-hs.dts  (then reboot)
+// Remove:  delete it from user_overlays= in /boot/armbianEnv.txt
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "rockchip,rk3288";
+
+	fragment@0 {
+		target = <&sdmmc>;
+		__overlay__ {
+			no-1-8-v;
+			max-frequency = <50000000>;
+		};
+	};
+};

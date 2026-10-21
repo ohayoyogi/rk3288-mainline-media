@@ -1,0 +1,36 @@
+From 6692cfa622fca91accc2c4ec8952ea2c404007af Mon Sep 17 00:00:00 2001
+From: ohayoyogi <77435669+ohayoyogi@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 01:27:46 +0900
+Subject: [PATCH 13/14] media: verisilicon: h1: mask the signed ENC_CTRL0
+ fields
+
+INIT_QP, SLICE_ALPHA, SLICE_BETA and CHROMA_QP_OFFSET were shifted without a
+mask, so a negative chroma_qp_index_offset (e.g. -3) or deblocking offset set
+all the upper bits of ENC_CTRL0, including INIT_QP. The hardware then wrote a
+slice_qp_delta that decodes to QP -7 and decoders rejected every slice.
+---
+ drivers/media/platform/verisilicon/hantro_h1_regs.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/media/platform/verisilicon/hantro_h1_regs.h b/drivers/media/platform/verisilicon/hantro_h1_regs.h
+index 4be852630..0a26af66b 100644
+--- a/drivers/media/platform/verisilicon/hantro_h1_regs.h
++++ b/drivers/media/platform/verisilicon/hantro_h1_regs.h
+@@ -62,10 +62,10 @@
+ #define     H1_REG_IN_IMG_CTRL_OVRFLB(x)		((x) << 6)
+ #define     H1_REG_IN_IMG_CTRL_FMT(x)			((x) << 2)
+ #define H1_REG_ENC_CTRL0				0x040
+-#define    H1_REG_ENC_CTRL0_INIT_QP(x)			((x) << 26)
+-#define    H1_REG_ENC_CTRL0_SLICE_ALPHA(x)		((x) << 22)
+-#define    H1_REG_ENC_CTRL0_SLICE_BETA(x)		((x) << 18)
+-#define    H1_REG_ENC_CTRL0_CHROMA_QP_OFFSET(x)		((x) << 13)
++#define    H1_REG_ENC_CTRL0_INIT_QP(x)			(((x) & 0x3f) << 26)
++#define    H1_REG_ENC_CTRL0_SLICE_ALPHA(x)		(((x) & 0xf) << 22)
++#define    H1_REG_ENC_CTRL0_SLICE_BETA(x)		(((x) & 0xf) << 18)
++#define    H1_REG_ENC_CTRL0_CHROMA_QP_OFFSET(x)		(((x) & 0x1f) << 13)
+ #define    H1_REG_ENC_CTRL0_FILTER_DIS(x)		((x) << 5)
+ #define    H1_REG_ENC_CTRL0_IDR_PICID(x)		((x) << 1)
+ #define    H1_REG_ENC_CTRL0_CONSTR_INTRA_PRED		BIT(0)
+-- 
+2.43.0
+

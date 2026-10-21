@@ -1,0 +1,70 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: ohayoyogi <77435669+ohayoyogi@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 09:58:12 +0900
+Subject: [PATCH] media: rkisp1: use 32-beat chroma bursts on rk3288
+
+With 64-beat chroma write bursts the RK3288 ISP writes some 64-byte
+chunks of the chroma plane with data from elsewhere in the line (seen
+with the OV5647 colour bars: luma intact, ~1900 bad chroma runs per
+1296x972 NV12 frame, no MIPI or data-loss errors). 32 and 16 beats are
+clean; luma bursts of 64 are fine.
+---
+ drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c | 5 ++++-
+ drivers/media/platform/rockchip/rkisp1/rkisp1-common.h  | 3 +++
+ drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c     | 3 ++-
+ 3 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c b/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c
+index 2bddb4fa8..c929b05ae 100644
+--- a/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c
++++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c
+@@ -453,7 +453,10 @@ static void rkisp1_mi_config_ctrl(struct rkisp1_capture *cap)
+ 	mi_ctrl |= RKISP1_CIF_MI_CTRL_BURST_LEN_LUM_64;
+ 
+ 	mi_ctrl &= ~GENMASK(19, 18);
+-	mi_ctrl |= RKISP1_CIF_MI_CTRL_BURST_LEN_CHROM_64;
++	if (rkisp1_has_feature(cap->rkisp1, CHROM_BURST_32))
++		mi_ctrl |= RKISP1_CIF_MI_CTRL_BURST_LEN_CHROM_32;
++	else
++		mi_ctrl |= RKISP1_CIF_MI_CTRL_BURST_LEN_CHROM_64;
+ 
+ 	mi_ctrl |= RKISP1_CIF_MI_CTRL_INIT_BASE_EN |
+ 		   RKISP1_CIF_MI_CTRL_INIT_OFFSET_EN;
+diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h b/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h
+index ca952fd08..ffc9f0e1c 100644
+--- a/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h
++++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h
+@@ -118,6 +118,8 @@ enum rkisp1_isp_pad {
+  * @RKISP1_FEATURE_DMA_34BIT: The ISP uses 34-bit DMA addresses
+  * @RKISP1_FEATURE_BLS: The ISP has a dedicated BLS block
+  * @RKISP1_FEATURE_COMPAND: The ISP has a companding block
++ * @RKISP1_FEATURE_CHROM_BURST_32: 64-beat chroma write bursts corrupt the
++ *	chroma plane, use 32-beat bursts
+  *
+  * The ISP features are stored in a bitmask in &rkisp1_info.features and allow
+  * the driver to implement support for features present in some ISP versions
+@@ -131,6 +133,7 @@ enum rkisp1_feature {
+ 	RKISP1_FEATURE_DMA_34BIT = BIT(4),
+ 	RKISP1_FEATURE_BLS = BIT(5),
+ 	RKISP1_FEATURE_COMPAND = BIT(6),
++	RKISP1_FEATURE_CHROM_BURST_32 = BIT(7),
+ };
+ 
+ #define rkisp1_has_feature(rkisp1, feature) \
+diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c b/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c
+index 6b56e71b9..e087114d8 100644
+--- a/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c
++++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c
+@@ -537,7 +537,8 @@ static const struct rkisp1_info rk3288_isp_info = {
+ 	.features = RKISP1_FEATURE_MIPI_CSI2
+ 		  | RKISP1_FEATURE_SELF_PATH
+ 		  | RKISP1_FEATURE_DUAL_CROP
+-		  | RKISP1_FEATURE_BLS,
++		  | RKISP1_FEATURE_BLS
++		  | RKISP1_FEATURE_CHROM_BURST_32,
+ 	.max_width = 4416,
+ 	.max_height = 3312,
+ };
+-- 
+2.43.0
+

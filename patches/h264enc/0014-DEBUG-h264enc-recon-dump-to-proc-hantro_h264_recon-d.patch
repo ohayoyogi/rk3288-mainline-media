@@ -1,0 +1,122 @@
+From 8a28e723a4fe11761633bb16daad919830a43cde Mon Sep 17 00:00:00 2001
+From: ohayoyogi <77435669+ohayoyogi@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 01:27:46 +0900
+Subject: [PATCH 14/14] DEBUG: h264enc recon dump to /proc/hantro_h264_recon
+ (dbg_dump=N)
+
+---
+ .../platform/verisilicon/hantro_h1_h264_enc.c | 62 +++++++++++++++++++
+ .../media/platform/verisilicon/hantro_h264.c  |  3 +
+ 2 files changed, 65 insertions(+)
+
+diff --git a/drivers/media/platform/verisilicon/hantro_h1_h264_enc.c b/drivers/media/platform/verisilicon/hantro_h1_h264_enc.c
+index 91584c73e..6ac548820 100644
+--- a/drivers/media/platform/verisilicon/hantro_h1_h264_enc.c
++++ b/drivers/media/platform/verisilicon/hantro_h1_h264_enc.c
+@@ -17,6 +17,9 @@
+  *	Jung Zhao <jung.zhao@rock-chips.com>
+  */
+ #include <linux/crc32.h>
++#include <linux/debugfs.h>
++#include <linux/proc_fs.h>
++#include <linux/vmalloc.h>
+ #include "hantro.h"
+ #include "hantro_hw.h"
+ #include "hantro_h1_regs.h"
+@@ -101,6 +104,60 @@ static const s32 h264_dmv_penalty[128] = { /* 4*sqrt(i*4*6) */
+  * Test hook: point the next P frame's reference luma at an unmapped IOVA
+  * to check IOMMU fault recovery. One-shot; cleared once used.
+  */
++
++/*
++ * dbg_dump=N: copy the next N reconstructed frames (luma then chroma, raw
++ * internal layout) into /sys/kernel/debug/hantro_h264_recon.
++ */
++static int dbg_dump;
++module_param(dbg_dump, int, 0644);
++static struct debugfs_blob_wrapper dump_blob;
++static size_t dump_cap;
++
++static ssize_t dump_proc_read(struct file *f, char __user *buf, size_t n, loff_t *pos)
++{
++	return simple_read_from_buffer(buf, n, pos, dump_blob.data, dump_blob.size);
++}
++
++static const struct proc_ops dump_proc_ops = {
++	.proc_read = dump_proc_read,
++	.proc_lseek = default_llseek,
++};
++
++/* Process context (encoder init): allocate the dump buffer and debugfs file. */
++void hantro_h1_dump_prepare(void)
++{
++	pr_info("hantro: dump_prepare dbg_dump=%d data=%p\n", dbg_dump, dump_blob.data);
++	if (dbg_dump <= 0 || dump_blob.data)
++		return;
++	dump_cap = 8 << 20;
++	dump_blob.data = vmalloc(dump_cap);
++	if (dump_blob.data) {
++		/* debugfs refuses new files on this kernel (-EACCES); use procfs */
++		struct proc_dir_entry *d = proc_create("hantro_h264_recon", 0444, NULL,
++						       &dump_proc_ops);
++
++		pr_info("hantro: recon dump buffer %zu bytes, /proc entry %s\n", dump_cap,
++			d ? "ok" : "failed");
++	} else {
++		pr_info("hantro: recon dump vmalloc failed\n");
++	}
++}
++
++/* Called from the IRQ handler (.done): copy only, never allocate. */
++static void hantro_h1_dump_recon(struct hantro_ctx *ctx)
++{
++	struct hantro_aux_buf *y = &ctx->h264_enc.luma_internal[ctx->h264_enc.reconstr_idx];
++	struct hantro_aux_buf *c = &ctx->h264_enc.chroma_internal[ctx->h264_enc.reconstr_idx];
++	size_t ysz = c->dma - y->dma, n = ysz + c->size;
++
++	if (!dump_blob.data || dump_blob.size + n > dump_cap)
++		return;
++	memcpy(dump_blob.data + dump_blob.size, y->cpu, ysz);
++	memcpy(dump_blob.data + dump_blob.size + ysz, c->cpu, c->size);
++	dump_blob.size += n;
++}
++
+ static int dbg_skip = -1;
+ module_param(dbg_skip, int, 0644);
+ static int dbg_crc;
+@@ -521,6 +578,11 @@ void hantro_h1_h264_enc_done(struct hantro_ctx *ctx)
+ 
+ 	vb2_set_plane_payload(&dst_buf->vb2_buf, 0, encoded_size);
+ 
++	if (dbg_dump > 0) {
++		hantro_h1_dump_recon(ctx);
++		dbg_dump--;
++	}
++
+ 	if (dbg_crc > 0) {
+ 		struct hantro_aux_buf *b = &ctx->h264_enc.luma_internal[ctx->h264_enc.reconstr_idx];
+ 		size_t ysz = ctx->h264_enc.chroma_internal[ctx->h264_enc.reconstr_idx].dma - b->dma;
+diff --git a/drivers/media/platform/verisilicon/hantro_h264.c b/drivers/media/platform/verisilicon/hantro_h264.c
+index dd6c9907a..4140f4e7c 100644
+--- a/drivers/media/platform/verisilicon/hantro_h264.c
++++ b/drivers/media/platform/verisilicon/hantro_h264.c
+@@ -1184,6 +1184,8 @@ static void h264_enc_init_cabac_table(struct hantro_ctx *ctx)
+ 	}
+ }
+ 
++void hantro_h1_dump_prepare(void);
++
+ int hantro_h264_enc_init(struct hantro_ctx *ctx)
+ {
+ 	struct hantro_dev *vpu = ctx->dev;
+@@ -1262,6 +1264,7 @@ int hantro_h264_enc_init(struct hantro_ctx *ctx)
+ 	}
+ 
+ 	h264_enc_init_cabac_table(ctx);
++	hantro_h1_dump_prepare();	/* DEBUG */
+ 
+ 	ctx->h264_enc.last_prev_idx = ctx->h264_enc.last_idx = ctx->h264_enc.ltr_idx = -1;
+ 
+-- 
+2.43.0
+

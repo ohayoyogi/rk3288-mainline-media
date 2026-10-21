@@ -1,0 +1,63 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: ohayoyogi <77435669+ohayoyogi@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 02:40:31 +0900
+Subject: [PATCH] media: tc358743: add V4L2_CID_LINK_FREQ and
+ V4L2_CID_PIXEL_RATE
+
+rkisp1 refuses a source without PIXEL_RATE. The CSI-2 lanes run at the
+fixed PLL rate, so report that as LINK_FREQ and the matching rate for
+all wired lanes as PIXEL_RATE.
+---
+ drivers/media/i2c/tc358743.c | 25 ++++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/media/i2c/tc358743.c b/drivers/media/i2c/tc358743.c
+index 4a550f302..9cdbf432a 100644
+--- a/drivers/media/i2c/tc358743.c
++++ b/drivers/media/i2c/tc358743.c
+@@ -81,6 +81,7 @@ struct tc358743_state {
+ 	struct v4l2_ctrl *detect_tx_5v_ctrl;
+ 	struct v4l2_ctrl *audio_sampling_rate_ctrl;
+ 	struct v4l2_ctrl *audio_present_ctrl;
++	s64 link_freq;
+ 
+ 	struct delayed_work delayed_work_enable_hotplug;
+ 
+@@ -2108,11 +2109,33 @@ static int tc358743_probe(struct i2c_client *client)
+ 	}
+ 
+ 	/* control handlers */
+-	v4l2_ctrl_handler_init(&state->hdl, 3);
++	v4l2_ctrl_handler_init(&state->hdl, 5);
+ 
+ 	state->detect_tx_5v_ctrl = v4l2_ctrl_new_std(&state->hdl, NULL,
+ 			V4L2_CID_DV_RX_POWER_PRESENT, 0, 1, 0, 0);
+ 
++	/*
++	 * CSI-2 receivers such as rkisp1 size their D-PHY from these. The CSI
++	 * lanes always run at the PLL rate; PIXEL_RATE is the rate when all
++	 * wired lanes carry UYVY.
++	 */
++	{
++		struct v4l2_ctrl *ctrl;
++		u32 bps_pr_lane = state->pdata.refclk_hz /
++				  state->pdata.pll_prd * state->pdata.pll_fbd;
++		unsigned int lanes = state->bus.num_data_lanes ?: 4;
++
++		state->link_freq = bps_pr_lane / 2;
++		ctrl = v4l2_ctrl_new_int_menu(&state->hdl, NULL,
++					      V4L2_CID_LINK_FREQ, 0, 0,
++					      &state->link_freq);
++		if (ctrl)
++			ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
++		v4l2_ctrl_new_std(&state->hdl, NULL, V4L2_CID_PIXEL_RATE,
++				  1, INT_MAX, 1,
++				  div_u64((u64)bps_pr_lane * lanes, 16));
++	}
++
+ 	/* custom controls */
+ 	state->audio_sampling_rate_ctrl = v4l2_ctrl_new_custom(&state->hdl,
+ 			&tc358743_ctrl_audio_sampling_rate, NULL);
+-- 
+2.43.0
+

@@ -1,0 +1,167 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: ohayoyogi <77435669+ohayoyogi@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 10:33:16 +0900
+Subject: [PATCH] media: rkisp1: mask error interrupts during an error storm
+
+A broken CSI-2 link (here: an OV5647 on a Tinker Board, with the FPC
+cable moved while streaming) left the board unreachable: SSH timed out,
+half of the pings were lost and the serial console only showed rkisp1
+messages. Only the DPHY ERR_CTRL interrupt was throttled; CSI errors,
+FIFO overflows and the ISP size-error/data-loss interrupts can fire back
+to back on the shared interrupt line.
+
+Allow RKISP1_ERR_IRQS_PER_FRAME (64) error interrupts per frame, then mask
+them (keeping MIPI FRAME_END / ISP FRAME) until the next frame gets
+through, and say so once in a while.
+---
+ .../platform/rockchip/rkisp1/rkisp1-common.h  | 19 ++++++++++++
+ .../platform/rockchip/rkisp1/rkisp1-csi.c     | 31 ++++++++++++++++---
+ .../platform/rockchip/rkisp1/rkisp1-isp.c     | 18 +++++++++++
+ 3 files changed, 63 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h b/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h
+index ffc9f0e1c..fc5171406 100644
+--- a/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h
++++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h
+@@ -200,6 +200,9 @@ struct rkisp1_sensor_async {
+  * @sd: v4l2_subdev variable
+  * @pads: media pads
+  * @source: source in-use, set when starting streaming
++ * @imsc: MIPI interrupt mask programmed at stream start
++ * @err_irqs: error interrupts since the last frame end
++ * @errs_masked: error interrupts masked after an error storm
+  */
+ struct rkisp1_csi {
+ 	struct rkisp1_device *rkisp1;
+@@ -208,8 +211,18 @@ struct rkisp1_csi {
+ 	struct v4l2_subdev sd;
+ 	struct media_pad pads[RKISP1_CSI_PAD_NUM];
+ 	struct v4l2_subdev *source;
++	u32 imsc;
++	unsigned int err_irqs;
++	bool errs_masked;
+ };
+ 
++/*
++ * Error interrupts allowed per frame before they are masked until the next
++ * frame: a broken CSI-2 link (e.g. a loose camera cable) raises them back to
++ * back and can starve the CPU completely.
++ */
++#define RKISP1_ERR_IRQS_PER_FRAME	64
++
+ /*
+  * struct rkisp1_isp - ISP subdev entity
+  *
+@@ -218,6 +231,9 @@ struct rkisp1_csi {
+  * @pads:			media pads
+  * @sink_fmt:			input format
+  * @frame_sequence:		used to synchronize frame_id between video devices.
++ * @imsc:			ISP interrupt mask programmed at stream start
++ * @err_irqs:			error interrupts since the last frame
++ * @errs_masked:		error interrupts masked after an error storm
+  */
+ struct rkisp1_isp {
+ 	struct v4l2_subdev sd;
+@@ -225,6 +241,9 @@ struct rkisp1_isp {
+ 	struct media_pad pads[RKISP1_ISP_PAD_MAX];
+ 	const struct rkisp1_mbus_info *sink_fmt;
+ 	__u32 frame_sequence;
++	u32 imsc;
++	unsigned int err_irqs;
++	bool errs_masked;
+ };
+ 
+ /*
+diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-csi.c b/drivers/media/platform/rockchip/rkisp1/rkisp1-csi.c
+index 315139c8e..3dae6a5f4 100644
+--- a/drivers/media/platform/rockchip/rkisp1/rkisp1-csi.c
++++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-csi.c
+@@ -90,11 +90,13 @@ static int rkisp1_csi_config(struct rkisp1_csi *csi, unsigned int lanes,
+ 	 * Disable RKISP1_CIF_MIPI_ERR_DPHY interrupt here temporary for
+ 	 * isp bus may be dead when switch isp.
+ 	 */
+-	rkisp1_write(rkisp1, RKISP1_CIF_MIPI_IMSC,
+-		     RKISP1_CIF_MIPI_FRAME_END | RKISP1_CIF_MIPI_ERR_CSI |
+-		     RKISP1_CIF_MIPI_ERR_DPHY |
+-		     RKISP1_CIF_MIPI_SYNC_FIFO_OVFLW(0x03) |
+-		     RKISP1_CIF_MIPI_ADD_DATA_OVFLW);
++	csi->imsc = RKISP1_CIF_MIPI_FRAME_END | RKISP1_CIF_MIPI_ERR_CSI |
++		    RKISP1_CIF_MIPI_ERR_DPHY |
++		    RKISP1_CIF_MIPI_SYNC_FIFO_OVFLW(0x03) |
++		    RKISP1_CIF_MIPI_ADD_DATA_OVFLW;
++	csi->err_irqs = 0;
++	csi->errs_masked = false;
++	rkisp1_write(rkisp1, RKISP1_CIF_MIPI_IMSC, csi->imsc);
+ 
+ 	dev_dbg(rkisp1->dev, "\n  MIPI_CTRL 0x%08x\n"
+ 		"  MIPI_IMG_DATA_SEL 0x%08x\n"
+@@ -249,6 +251,25 @@ irqreturn_t rkisp1_csi_isr(int irq, void *ctx)
+ 		}
+ 	} else {
+ 		rkisp1->debug.mipi_error++;
++		if (++rkisp1->csi.err_irqs == RKISP1_ERR_IRQS_PER_FRAME) {
++			/* keep only FRAME_END until a frame gets through */
++			rkisp1_write(rkisp1, RKISP1_CIF_MIPI_IMSC,
++				     RKISP1_CIF_MIPI_FRAME_END);
++			rkisp1->csi.errs_masked = true;
++			dev_warn_ratelimited(rkisp1->dev,
++					     "MIPI error storm (link problem?), error interrupts masked until the next frame\n");
++		}
++	}
++
++	if (status & RKISP1_CIF_MIPI_FRAME_END) {
++		rkisp1->csi.err_irqs = 0;
++		if (rkisp1->csi.errs_masked) {
++			rkisp1_write(rkisp1, RKISP1_CIF_MIPI_IMSC,
++				     rkisp1->csi.imsc);
++			rkisp1->csi.errs_masked = false;
++			/* errctrl comes back after the next clean frame */
++			rkisp1->csi.is_dphy_errctrl_disabled = true;
++		}
+ 	}
+ 
+ 	return IRQ_HANDLED;
+diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-isp.c b/drivers/media/platform/rockchip/rkisp1/rkisp1-isp.c
+index d94917211..15c8024ce 100644
+--- a/drivers/media/platform/rockchip/rkisp1/rkisp1-isp.c
++++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-isp.c
+@@ -304,6 +304,9 @@ static int rkisp1_config_isp(struct rkisp1_isp *isp,
+ 
+ 	irq_mask |= RKISP1_CIF_ISP_FRAME | RKISP1_CIF_ISP_V_START |
+ 		    RKISP1_CIF_ISP_PIC_SIZE_ERROR;
++	rkisp1->isp.imsc = irq_mask;
++	rkisp1->isp.err_irqs = 0;
++	rkisp1->isp.errs_masked = false;
+ 	rkisp1_write(rkisp1, RKISP1_CIF_ISP_IMSC, irq_mask);
+ 
+ 	if (src_fmt->pixel_enc == V4L2_PIXEL_ENC_BAYER) {
+@@ -1135,11 +1138,26 @@ irqreturn_t rkisp1_isp_isr(int irq, void *ctx)
+ 		rkisp1->debug.data_loss++;
+ 	}
+ 
++	if (status & (RKISP1_CIF_ISP_PIC_SIZE_ERROR | RKISP1_CIF_ISP_DATA_LOSS) &&
++	    ++rkisp1->isp.err_irqs == RKISP1_ERR_IRQS_PER_FRAME) {
++		rkisp1_write(rkisp1, RKISP1_CIF_ISP_IMSC, rkisp1->isp.imsc &
++			     ~(RKISP1_CIF_ISP_PIC_SIZE_ERROR | RKISP1_CIF_ISP_DATA_LOSS));
++		rkisp1->isp.errs_masked = true;
++		dev_warn_ratelimited(rkisp1->dev,
++				     "ISP error storm, error interrupts masked until the next frame\n");
++	}
++
+ 	if (status & RKISP1_CIF_ISP_FRAME) {
+ 		u32 isp_ris;
+ 
+ 		rkisp1->debug.complete_frames++;
+ 
++		rkisp1->isp.err_irqs = 0;
++		if (rkisp1->isp.errs_masked) {
++			rkisp1_write(rkisp1, RKISP1_CIF_ISP_IMSC, rkisp1->isp.imsc);
++			rkisp1->isp.errs_masked = false;
++		}
++
+ 		/* New frame from the sensor received */
+ 		isp_ris = rkisp1_read(rkisp1, RKISP1_CIF_ISP_RIS);
+ 		if (isp_ris & RKISP1_STATS_MEAS_MASK)
+-- 
+2.43.0
+

@@ -1,0 +1,34 @@
+From 2cd98d7e2fe6a8b5c354cf424a8782fe84b4a880 Mon Sep 17 00:00:00 2001
+From: Andrzej Pietrasiewicz <andrzej.p@collabora.com>
+Date: Thu, 16 Nov 2023 16:48:14 +0100
+Subject: [PATCH 06/14] media: verisilicon: Update H1 register definitions
+
+Link: https://lore.kernel.org/r/20231116154816.70959-5-andrzej.p@collabora.com
+Signed-off-by: Andrzej Pietrasiewicz <andrzej.p@collabora.com>
+---
+ drivers/media/platform/verisilicon/hantro_h1_regs.h | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/drivers/media/platform/verisilicon/hantro_h1_regs.h b/drivers/media/platform/verisilicon/hantro_h1_regs.h
+index c1c66c934..efb46da23 100644
+--- a/drivers/media/platform/verisilicon/hantro_h1_regs.h
++++ b/drivers/media/platform/verisilicon/hantro_h1_regs.h
+@@ -23,6 +23,15 @@
+ #define     H1_REG_AXI_CTRL_INPUT_SWAP32		BIT(2)
+ #define     H1_REG_AXI_CTRL_OUTPUT_SWAP8		BIT(1)
+ #define     H1_REG_AXI_CTRL_INPUT_SWAP8			BIT(0)
++#define H1_REG_DEVICE_CTRL				0x00c
++#define     H1_REG_DEVICE_CTRL_SCALE_OUTPUT_SWAP8	BIT(27)
++#define     H1_REG_DEVICE_CTRL_SCALE_OUTPUT_SWAP16	BIT(26)
++#define     H1_REG_DEVICE_CTRL_SCALE_OUTPUT_SWAP32	BIT(25)
++#define     H1_REG_DEVICE_CTRL_MV_OUTPUT_SWAP8		BIT(24)
++#define     H1_REG_DEVICE_CTRL_MV_OUTPUT_SWAP16		BIT(23)
++#define     H1_REG_DEVICE_CTRL_MV_OUTPUT_SWAP32		BIT(22)
++#define     H1_REG_DEVICE_CTRL_INPUT_READ_1MB		BIT(21)
++#define     H1_REG_DEVICE_CTRL_AXI_DUAL_CHANNEL		BIT(20)
+ #define H1_REG_ADDR_OUTPUT_STREAM			0x014
+ #define H1_REG_ADDR_OUTPUT_CTRL				0x018
+ #define H1_REG_ADDR_REF_LUMA				0x01c
+-- 
+2.43.0
+

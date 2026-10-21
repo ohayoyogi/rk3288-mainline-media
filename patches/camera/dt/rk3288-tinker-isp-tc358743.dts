@@ -1,0 +1,134 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Tinker Board: Geekworm C790 (TC358743 HDMI -> CSI-2, 2 lanes) on the
+ * 15-pin camera connector, through the RK3288 ISP (rkisp1) and DPHY RX0.
+ * Needs the patches in patches/camera/ (rk3288 support in rkisp1 and
+ * phy-rockchip-dphy-rx0, LINK_FREQ/PIXEL_RATE in tc358743).
+ *
+ * Build: scripts/build-camera-overlays.sh  ->  rk3288-tinker-isp-tc358743.dtbo
+ */
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/rk3288-cru.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/power/rk3288-power.h>
+
+/ {
+	compatible = "rockchip,rk3288-tinker", "rockchip,rk3288";
+
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			#address-cells = <2>;
+			#size-cells = <2>;
+
+			/* the C790 has a 27 MHz crystal of its own */
+			tc358743_refclk: tc358743-refclk {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <27000000>;
+				clock-output-names = "tc358743-refclk";
+			};
+
+			isp: isp@ff910000 {
+				compatible = "rockchip,rk3288-cif-isp";
+				reg = <0x0 0xff910000 0x0 0x4000>;
+				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cru SCLK_ISP>, <&cru ACLK_ISP>,
+					 <&cru HCLK_ISP>, <&cru PCLK_ISP_IN>,
+					 <&cru SCLK_ISP_JPE>;
+				clock-names = "isp", "aclk", "hclk", "pclk_in", "jpe";
+				assigned-clocks = <&cru SCLK_ISP>, <&cru SCLK_ISP_JPE>;
+				assigned-clock-rates = <400000000>, <400000000>;
+				power-domains = <&power RK3288_PD_VIO>;
+				iommus = <&isp_mmu>;
+				phys = <&mipi_phy_rx0>;
+				phy-names = "dphy";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						isp_mipi_in: endpoint@0 {
+							reg = <0>;
+							remote-endpoint = <&tc358743_out>;
+							data-lanes = <1 2>;
+						};
+					};
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&grf>;
+		__overlay__ {
+			mipi_phy_rx0: mipi-dphy-rx0 {
+				compatible = "rockchip,rk3288-mipi-dphy-rx0";
+				clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_MIPI_CSI>;
+				clock-names = "dphy-ref", "pclk";
+				power-domains = <&power RK3288_PD_VIO>;
+				#phy-cells = <0>;
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&isp_mmu>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	/*
+	 * The C790 wires FPC pin 11 (CAM_GPIO) but its use is not documented
+	 * (pin 12 is unconnected; RESETN and INT are on the 5-pin SYS header).
+	 * Drive it high: right for both an enable and an active-low reset.
+	 */
+	fragment@4 {
+		target = <&gpio2>;
+		__overlay__ {
+			cam-gpio-hog {
+				gpio-hog;
+				gpios = <0 GPIO_ACTIVE_HIGH>;
+				output-high;
+				line-name = "CAM_GPIO";
+			};
+		};
+	};
+
+	/* camera connector I2C (same bus as the OV5647 in the vendor kernel) */
+	fragment@3 {
+		target = <&i2c2>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+
+			tc358743: hdmi-bridge@f {
+				compatible = "toshiba,tc358743";
+				reg = <0x0f>;
+				clocks = <&tc358743_refclk>;
+				clock-names = "refclk";
+
+				port {
+					tc358743_out: endpoint {
+						remote-endpoint = <&isp_mipi_in>;
+						data-lanes = <1 2>;
+						clock-lanes = <0>;
+						clock-noncontinuous;
+						/* 972 Mbit/s per lane: 1080p30 UYVY in 2 lanes */
+						link-frequencies = /bits/ 64 <486000000>;
+					};
+				};
+			};
+		};
+	};
+};

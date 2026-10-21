@@ -1,0 +1,71 @@
+From f74de354000b2b1432519412121f0a20d9ccc7ef Mon Sep 17 00:00:00 2001
+From: ohayoyogi <77435669+ohayoyogi@users.noreply.github.com>
+Date: Tue, 20 Oct 2026 22:18:08 +0900
+Subject: [PATCH 11/14] media: verisilicon: stop the core on IOMMU page faults
+
+---
+ .../media/platform/verisilicon/hantro_drv.c   | 34 +++++++++++++++++++
+ 1 file changed, 34 insertions(+)
+
+diff --git a/drivers/media/platform/verisilicon/hantro_drv.c b/drivers/media/platform/verisilicon/hantro_drv.c
+index 44edff14c..0005a68d8 100644
+--- a/drivers/media/platform/verisilicon/hantro_drv.c
++++ b/drivers/media/platform/verisilicon/hantro_drv.c
+@@ -11,6 +11,7 @@
+  */
+ 
+ #include <linux/clk.h>
++#include <linux/iommu.h>
+ #include <linux/module.h>
+ #include <linux/of.h>
+ #include <linux/platform_device.h>
+@@ -1061,6 +1062,37 @@ static int hantro_disable_multicore(struct hantro_dev *vpu)
+ 	return 0;
+ }
+ 
++/*
++ * An IOMMU page fault stalls the core on the faulting access. The Rockchip
++ * IOMMU acknowledges the fault and lets the master retry, so a core that
++ * keeps reading an unmapped address faults forever (an interrupt storm the
++ * job watchdog never gets out of). Stop the core that is running the
++ * current job; the watchdog then fails the job as usual.
++ */
++static int hantro_iommu_fault(struct iommu_domain *domain, struct device *dev,
++			      unsigned long iova, int flags, void *token)
++{
++	struct hantro_dev *vpu = token;
++	struct hantro_ctx *ctx;
++
++	dev_err_ratelimited(vpu->dev, "IOMMU %s fault at %#lx, stopping core\n",
++			    flags & IOMMU_FAULT_WRITE ? "write" : "read", iova);
++
++	ctx = v4l2_m2m_get_curr_priv(vpu->m2m_dev);
++	if (ctx && ctx->codec_ops && ctx->codec_ops->reset)
++		ctx->codec_ops->reset(ctx);
++
++	return -EFAULT;
++}
++
++static void hantro_setup_iommu_fault(struct hantro_dev *vpu)
++{
++	struct iommu_domain *domain = iommu_get_domain_for_dev(vpu->dev);
++
++	if (domain)
++		iommu_set_fault_handler(domain, hantro_iommu_fault, vpu);
++}
++
+ static int hantro_probe(struct platform_device *pdev)
+ {
+ 	const struct of_device_id *match;
+@@ -1219,6 +1251,8 @@ static int hantro_probe(struct platform_device *pdev)
+ 		goto err_v4l2_unreg;
+ 	}
+ 
++	hantro_setup_iommu_fault(vpu);
++
+ 	vpu->mdev.dev = vpu->dev;
+ 	strscpy(vpu->mdev.model, DRIVER_NAME, sizeof(vpu->mdev.model));
+ 	media_device_init(&vpu->mdev);
+-- 
+2.43.0
+

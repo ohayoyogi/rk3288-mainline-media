@@ -1,0 +1,114 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Tinker Board: Raspberry Pi camera v1.3 (OV5647, RAW10, 2 lanes) on the
+ * 15-pin camera connector, through the RK3288 ISP (rkisp1) and DPHY RX0.
+ * I2C bus, power-down GPIO and clock follow Karthik Poduval's 2020 Tinker
+ * patch (ported from the ASUS kernel). Needs the patches in patches/camera/.
+ *
+ * Build: scripts/build-camera-overlays.sh  ->  rk3288-tinker-isp-ov5647.dtbo
+ */
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/clock/rk3288-cru.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/power/rk3288-power.h>
+
+/ {
+	compatible = "rockchip,rk3288-tinker", "rockchip,rk3288";
+
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			#address-cells = <2>;
+			#size-cells = <2>;
+
+			/* the camera module has a 25 MHz oscillator of its own */
+			ov5647_clk: ov5647-clk {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <25000000>;
+				clock-output-names = "ov5647-xclk";
+			};
+
+			isp: isp@ff910000 {
+				compatible = "rockchip,rk3288-cif-isp";
+				reg = <0x0 0xff910000 0x0 0x4000>;
+				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cru SCLK_ISP>, <&cru ACLK_ISP>,
+					 <&cru HCLK_ISP>, <&cru PCLK_ISP_IN>,
+					 <&cru SCLK_ISP_JPE>;
+				clock-names = "isp", "aclk", "hclk", "pclk_in", "jpe";
+				assigned-clocks = <&cru SCLK_ISP>, <&cru SCLK_ISP_JPE>;
+				assigned-clock-rates = <400000000>, <400000000>;
+				power-domains = <&power RK3288_PD_VIO>;
+				iommus = <&isp_mmu>;
+				phys = <&mipi_phy_rx0>;
+				phy-names = "dphy";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						isp_mipi_in: endpoint@0 {
+							reg = <0>;
+							remote-endpoint = <&ov5647_out>;
+							data-lanes = <1 2>;
+						};
+					};
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&grf>;
+		__overlay__ {
+			mipi_phy_rx0: mipi-dphy-rx0 {
+				compatible = "rockchip,rk3288-mipi-dphy-rx0";
+				clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_MIPI_CSI>;
+				clock-names = "dphy-ref", "pclk";
+				power-domains = <&power RK3288_PD_VIO>;
+				#phy-cells = <0>;
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&isp_mmu>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@3 {
+		target = <&i2c2>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+
+			camera@36 {
+				compatible = "ovti,ov5647";
+				reg = <0x36>;
+				clocks = <&ov5647_clk>;
+				/* connector pin 11 (CAM_GPIO): high = camera powered */
+				pwdn-gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;
+
+				port {
+					ov5647_out: endpoint {
+						remote-endpoint = <&isp_mipi_in>;
+						data-lanes = <1 2>;
+						clock-noncontinuous;
+					};
+				};
+			};
+		};
+	};
+};

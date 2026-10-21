@@ -1,0 +1,96 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: ohayoyogi <77435669+ohayoyogi@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 02:40:31 +0900
+Subject: [PATCH] media: rkisp1: csi: use the lanes and link frequency the
+ source reports
+
+Bridges such as the TC358743 drive fewer CSI-2 lanes than are wired for
+small modes (720p60 fits in one lane at 972 Mbps). Ask the source with
+get_mbus_config, and size the D-PHY from V4L2_CID_LINK_FREQ when it is
+there (v4l2_get_link_freq falls back to PIXEL_RATE).
+---
+ .../platform/rockchip/rkisp1/rkisp1-csi.c     | 39 +++++++++++++------
+ 1 file changed, 27 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-csi.c b/drivers/media/platform/rockchip/rkisp1/rkisp1-csi.c
+index 841e58c20..315139c8e 100644
+--- a/drivers/media/platform/rockchip/rkisp1/rkisp1-csi.c
++++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-csi.c
+@@ -58,12 +58,10 @@ int rkisp1_csi_link_sensor(struct rkisp1_device *rkisp1, struct v4l2_subdev *sd,
+ 	return 0;
+ }
+ 
+-static int rkisp1_csi_config(struct rkisp1_csi *csi,
+-			     const struct rkisp1_sensor_async *sensor,
++static int rkisp1_csi_config(struct rkisp1_csi *csi, unsigned int lanes,
+ 			     const struct rkisp1_mbus_info *format)
+ {
+ 	struct rkisp1_device *rkisp1 = csi->rkisp1;
+-	unsigned int lanes = sensor->lanes;
+ 	u32 mipi_ctrl;
+ 
+ 	if (lanes < 1 || lanes > 4)
+@@ -148,26 +146,42 @@ static void rkisp1_csi_disable(struct rkisp1_csi *csi)
+ 
+ static int rkisp1_csi_start(struct rkisp1_csi *csi,
+ 			    const struct rkisp1_sensor_async *sensor,
+-			    const struct rkisp1_mbus_info *format)
++			    const struct rkisp1_mbus_info *format,
++			    struct v4l2_subdev *source, unsigned int source_pad)
+ {
+ 	struct rkisp1_device *rkisp1 = csi->rkisp1;
+ 	union phy_configure_opts opts;
+ 	struct phy_configure_opts_mipi_dphy *cfg = &opts.mipi_dphy;
+-	s64 pixel_clock;
++	struct v4l2_mbus_config mbus_cfg = { };
++	unsigned int lanes = sensor->lanes;
++	s64 link_freq;
+ 	int ret;
+ 
+-	ret = rkisp1_csi_config(csi, sensor, format);
++	/*
++	 * Bridges such as the TC358743 drive fewer lanes than wired for small
++	 * modes; ask the source how many it really uses.
++	 */
++	if (!v4l2_subdev_call(source, pad, get_mbus_config, source_pad,
++			      &mbus_cfg) &&
++	    mbus_cfg.type == V4L2_MBUS_CSI2_DPHY &&
++	    mbus_cfg.bus.mipi_csi2.num_data_lanes &&
++	    mbus_cfg.bus.mipi_csi2.num_data_lanes <= sensor->lanes)
++		lanes = mbus_cfg.bus.mipi_csi2.num_data_lanes;
++
++	ret = rkisp1_csi_config(csi, lanes, format);
+ 	if (ret)
+ 		return ret;
+ 
+-	pixel_clock = v4l2_ctrl_g_ctrl_int64(sensor->pixel_rate_ctrl);
+-	if (!pixel_clock) {
+-		dev_err(rkisp1->dev, "Invalid pixel rate value\n");
++	/* LINK_FREQ when the source has it, PIXEL_RATE otherwise */
++	link_freq = v4l2_get_link_freq(source->ctrl_handler, format->bus_width,
++				       lanes * 2);
++	if (link_freq <= 0) {
++		dev_err(rkisp1->dev, "Invalid link frequency\n");
+ 		return -EINVAL;
+ 	}
++	dev_dbg(rkisp1->dev, "%u lanes, link %lld Hz\n", lanes, link_freq);
+ 
+-	phy_mipi_dphy_get_default_config(pixel_clock, format->bus_width,
+-					 sensor->lanes, cfg);
++	phy_mipi_dphy_get_default_config_for_hsclk(link_freq * 2, lanes, cfg);
+ 	phy_set_mode(csi->dphy, PHY_MODE_MIPI_DPHY);
+ 	phy_configure(csi->dphy, &opts);
+ 	phy_power_on(csi->dphy);
+@@ -392,7 +406,8 @@ static int rkisp1_csi_s_stream(struct v4l2_subdev *sd, int enable)
+ 	format = rkisp1_mbus_info_get_by_code(sink_fmt->code);
+ 	v4l2_subdev_unlock_state(sd_state);
+ 
+-	ret = rkisp1_csi_start(csi, source_asd, format);
++	ret = rkisp1_csi_start(csi, source_asd, format, source,
++			       source_pad->index);
+ 	if (ret)
+ 		return ret;
+ 
+-- 
+2.43.0
+

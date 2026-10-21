@@ -1,0 +1,55 @@
+v4l2codecs: h264enc: copy only the visible area into padded input buffers
+
+When upstream does not use the encoder's pool (v4l2src with its own
+buffers, e.g. the rkisp1 main path), the input is copied into a pool
+buffer whose layout is padded to whole macroblocks (1920x1088 for 1080p).
+gst_video_frame_copy() refuses a destination larger than the source, so
+every unaligned frame failed with "Failed to allocate/copy input buffer".
+Map the destination with the visible size (the pool's video meta overrides
+the GstVideoInfo when mapping, so set it on the mapped frame too), and fix
+the unmap of the wrong frame on the error path.
+
+Note: with v4l2src, also put "identity drop-allocation=true" in front of
+the encoder, or v4l2src imports the padded pool buffers and the request is
+rejected (EINVAL).
+
+--- a/sys/v4l2codecs/gstv4l2codech264enc.c	2026-10-21 10:14:20.043875413 +0900
++++ b/sys/v4l2codecs/gstv4l2codech264enc.c	2026-10-21 10:14:20.043875413 +0900
+@@ -872,11 +872,19 @@
+   GstVideoFrame src_frame;
+   GstVideoFrame dest_frame;
+   GstVideoInfo src_vinfo;
++  GstVideoInfo dest_vinfo;
+   GstBuffer *buffer;
+   GstFlowReturn flow_ret;
+ 
+   gst_video_info_set_format (&src_vinfo, GST_VIDEO_INFO_FORMAT (&self->vinfo),
+       self->width, self->height);
++  /* self->vinfo is padded to whole macroblocks (e.g. 1920x1088) and
++   * gst_video_frame_copy() refuses a destination larger than the source:
++   * copy the visible area into the padded layout. Happens whenever upstream
++   * does not use our pool (v4l2src with its own buffers, e.g. rkisp1). */
++  dest_vinfo = self->vinfo;
++  GST_VIDEO_INFO_WIDTH (&dest_vinfo) = self->width;
++  GST_VIDEO_INFO_HEIGHT (&dest_vinfo) = self->height;
+ 
+   flow_ret = gst_buffer_pool_acquire_buffer (GST_BUFFER_POOL (self->sink_pool),
+       &buffer, NULL);
+@@ -896,11 +904,15 @@
+           frame->input_buffer, GST_MAP_READ))
+     goto fail;
+ 
+-  if (!gst_video_frame_map (&dest_frame, &self->vinfo, buffer, GST_MAP_WRITE)) {
+-    gst_video_frame_unmap (&dest_frame);
++  if (!gst_video_frame_map (&dest_frame, &dest_vinfo, buffer, GST_MAP_WRITE)) {
++    gst_video_frame_unmap (&src_frame);
+     goto fail;
+   }
+ 
++  /* the pool's video meta wins over dest_vinfo when mapping */
++  GST_VIDEO_INFO_WIDTH (&dest_frame.info) = self->width;
++  GST_VIDEO_INFO_HEIGHT (&dest_frame.info) = self->height;
++
+   if (!gst_video_frame_copy (&dest_frame, &src_frame)) {
+     gst_video_frame_unmap (&src_frame);
+     gst_video_frame_unmap (&dest_frame);

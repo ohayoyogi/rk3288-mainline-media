@@ -1,0 +1,118 @@
+From c9fd319dac40c42a47ea6515faab31c78d066926 Mon Sep 17 00:00:00 2001
+From: ohayoyogi <77435669+ohayoyogi@users.noreply.github.com>
+Date: Tue, 20 Oct 2026 22:49:56 +0900
+Subject: [PATCH 12/14] DEBUG: h264enc experiment knobs (fault_inject,
+ dbg_deblock, dbg_noqpel, dbg_skip, dbg_crc)
+
+---
+ .../platform/verisilicon/hantro_h1_h264_enc.c | 58 +++++++++++++++++--
+ 1 file changed, 54 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/media/platform/verisilicon/hantro_h1_h264_enc.c b/drivers/media/platform/verisilicon/hantro_h1_h264_enc.c
+index eaffcb45a..91584c73e 100644
+--- a/drivers/media/platform/verisilicon/hantro_h1_h264_enc.c
++++ b/drivers/media/platform/verisilicon/hantro_h1_h264_enc.c
+@@ -16,6 +16,7 @@
+  *	Alpha Lin <Alpha.Lin@rock-chips.com>
+  *	Jung Zhao <jung.zhao@rock-chips.com>
+  */
++#include <linux/crc32.h>
+ #include "hantro.h"
+ #include "hantro_hw.h"
+ #include "hantro_h1_regs.h"
+@@ -96,6 +97,23 @@ static const s32 h264_dmv_penalty[128] = { /* 4*sqrt(i*4*6) */
+ 	214,  215,  216,  217,  218,  219,  219,  220
+ };
+ 
++/*
++ * Test hook: point the next P frame's reference luma at an unmapped IOVA
++ * to check IOMMU fault recovery. One-shot; cleared once used.
++ */
++static int dbg_skip = -1;
++module_param(dbg_skip, int, 0644);
++static int dbg_crc;
++module_param(dbg_crc, int, 0644);
++static int dbg_noqpel;
++module_param(dbg_noqpel, int, 0644);
++static int dbg_deblock = -1;
++module_param(dbg_deblock, int, 0644);
++
++static bool fault_inject;
++module_param(fault_inject, bool, 0644);
++MODULE_PARM_DESC(fault_inject, "one-shot: make the next H.264 P frame fault (test)");
++
+ static s32 exp_golomb_signed(s32 val)
+ {
+ 	s32 tmp = 0;
+@@ -134,9 +152,9 @@ static void hantro_h1_h264_enc_set_params(struct hantro_dev *vpu, struct hantro_
+ 	vepu_write_relaxed(vpu, reg, H1_REG_ENC_CTRL1);
+ 
+ 	reg = 0;
+-	if (mb_width * mb_height > MAX_MB_COUNT_TO_DISABLE_QUARTER_PIXEL_MV)
++	if (dbg_noqpel || mb_width * mb_height > MAX_MB_COUNT_TO_DISABLE_QUARTER_PIXEL_MV)
+ 		reg = H1_REG_ENC_CTRL2_DISABLE_QUARTER_PIXMV;
+-	reg |= H1_REG_ENC_CTRL2_DEBLOCKING_FILTER_MODE(params->disable_deblocking_filter_idc)
++	reg |= H1_REG_ENC_CTRL2_DEBLOCKING_FILTER_MODE(dbg_deblock >= 0 ? dbg_deblock : params->disable_deblocking_filter_idc)
+ 		| H1_REG_ENC_CTRL2_H264_SLICE_SIZE(0)
+ 		| H1_REG_ENC_CTRL2_CABAC_INIT_IDC(params->cabac_init_idc)
+ 		| H1_REG_ENC_CTRL2_H264_INTER4X4_MODE
+@@ -154,6 +172,8 @@ static void hantro_h1_h264_enc_set_params(struct hantro_dev *vpu, struct hantro_
+ 
+ 	scaler = max(1U, 200 / (mb_width + mb_height));
+ 	skip_penalty = min(255U, h264_skip_sad_penalty[qp] * scaler);
++	if (dbg_skip >= 0)
++		skip_penalty = dbg_skip;
+ 	reg = H1_REG_ENC_CTRL5_MACROBLOCK_PENALTY(skip_penalty)
+ 		| H1_REG_ENC_CTRL5_COMPLETE_SLICES(0)
+ 		| H1_REG_ENC_CTRL5_INTER_MODE(h264_inter_favor[qp]);
+@@ -333,8 +353,14 @@ static void hantro_h1_h264_enc_set_buffers(struct hantro_dev *vpu, struct hantro
+ 					   H1_REG_H264_REFERENCE_IDX);
+ 		}
+ 
+-		vepu_write_relaxed(vpu, ctx->h264_enc.luma_internal[i].dma,
+-				   H1_REG_ADDR_REF_LUMA);
++		if (unlikely(fault_inject)) {
++			fault_inject = false;
++			dev_warn(vpu->dev, "fault_inject: bad reference address\n");
++			vepu_write_relaxed(vpu, 0xfff00000, H1_REG_ADDR_REF_LUMA);
++		} else {
++			vepu_write_relaxed(vpu, ctx->h264_enc.luma_internal[i].dma,
++					   H1_REG_ADDR_REF_LUMA);
++		}
+ 		vepu_write_relaxed(vpu, ctx->h264_enc.chroma_internal[i].dma,
+ 				   H1_REG_ADDR_REF_CHROMA);
+ 	}
+@@ -495,6 +521,30 @@ void hantro_h1_h264_enc_done(struct hantro_ctx *ctx)
+ 
+ 	vb2_set_plane_payload(&dst_buf->vb2_buf, 0, encoded_size);
+ 
++	if (dbg_crc > 0) {
++		struct hantro_aux_buf *b = &ctx->h264_enc.luma_internal[ctx->h264_enc.reconstr_idx];
++		size_t ysz = ctx->h264_enc.chroma_internal[ctx->h264_enc.reconstr_idx].dma - b->dma;
++
++		dev_info(vpu->dev, "recon crc y=%08x c=%08x\n",
++			 crc32_le(0, b->cpu, ysz),
++			 crc32_le(0, ctx->h264_enc.chroma_internal[ctx->h264_enc.reconstr_idx].cpu,
++				  ctx->h264_enc.chroma_internal[ctx->h264_enc.reconstr_idx].size));
++		dev_info(vpu->dev, "recon y[0..31]   %*phN", 32, b->cpu);
++		dev_info(vpu->dev, "recon y[1280..]  %*phN", 32, b->cpu + 1280);
++		dev_info(vpu->dev, "recon y[16..47]  %*phN", 32, b->cpu + 16);
++		{
++			unsigned int mbw = MB_WIDTH(ctx->src_fmt.width), r;
++			size_t row = mbw * 256;
++			char line[200]; int n = 0;
++
++			for (r = 0; r < 12 && (r + 1) * row <= ysz; r++)
++				n += scnprintf(line + n, sizeof(line) - n, "%08x ",
++					       crc32_le(0, b->cpu + r * row, row));
++			dev_info(vpu->dev, "recon rowcrc %s", line);
++		}
++		dbg_crc--;
++	}
++
+ 	ctx->h264_enc.last_prev_idx = ctx->h264_enc.last_idx;
+ 	ctx->h264_enc.last_idx = ctx->h264_enc.reconstr_idx;
+ 
+-- 
+2.43.0
+
