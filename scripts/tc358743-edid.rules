@@ -1,0 +1,4 @@
+# TC358743 (Geekworm C790): load the EDID as soon as the subdevice appears,
+# so the HDMI source sees a monitor before anything captures. Installed as
+# /etc/udev/rules.d/99-tc358743-edid.rules by "tinker-camera.sh boot-edid on".
+ACTION=="add", SUBSYSTEM=="video4linux", KERNEL=="v4l-subdev*", ATTR{name}=="tc358743*", TAG+="systemd", ENV{SYSTEMD_WANTS}+="tc358743-edid@%k.service"

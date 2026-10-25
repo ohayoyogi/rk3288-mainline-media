@@ -10,6 +10,9 @@
 #   tinker-camera.sh uninstall            remove the modules again
 #   tinker-camera.sh status               media graph, subdevs, recent kernel messages
 #   tinker-camera.sh hdmi [W H]           TC358743: EDID, lock timings, configure the pipeline
+#   tinker-camera.sh boot-edid on [FILE]  TC358743: load the EDID whenever it appears (udev),
+#                                         so the HDMI source sees a monitor without a capture
+#   tinker-camera.sh boot-edid off        remove that again
 #   tinker-camera.sh ov5647 [W H]         OV5647: configure the pipeline (default 1296x972)
 #   tinker-camera.sh grab [N]             capture N NV12 frames from the main path to /tmp
 set -euo pipefail
@@ -95,6 +98,35 @@ hdmi)
 	$M -V "\"rkisp1_resizer_mainpath\":1 [fmt:YUYV8_1_5X8/${W}x${H}]"
 	$M -p | grep -A2 -E "tc358743|rkisp1_csi|rkisp1_isp|resizer_mainpath" | grep fmt
 	;;
+boot-edid)
+	# The TC358743 raises HDMI hot-plug detect only once an EDID is written.
+	# udev starts tc358743-edid@<subdev>.service when the subdevice appears,
+	# so nothing happens on a board without one (C790 not fitted, overlay
+	# off). Uses tc358743-edid.{sh,rules} and tc358743-edid@.service from
+	# the directory of this script.
+	D=$(dirname "$0")
+	case "${2:-}" in
+	on)
+		F=${3:-$D/edid-tc358743.txt}
+		[ -f "$F" ] || { echo "no EDID file $F"; exit 1; }
+		sudo install -m 755 "$D/tc358743-edid.sh" /usr/local/sbin/tc358743-edid.sh
+		sudo install -m 644 "$D/tc358743-edid@.service" /etc/systemd/system/tc358743-edid@.service
+		sudo install -m 644 "$D/tc358743-edid.rules" /etc/udev/rules.d/99-tc358743-edid.rules
+		sudo install -m 644 "$F" /etc/tc358743-edid.txt
+		sudo systemctl daemon-reload
+		sudo udevadm control --reload
+		sudo /usr/local/sbin/tc358743-edid.sh   # now, if one is there
+		;;
+	off)
+		sudo rm -f /usr/local/sbin/tc358743-edid.sh /etc/systemd/system/tc358743-edid@.service \
+			/etc/udev/rules.d/99-tc358743-edid.rules /etc/tc358743-edid.txt
+		sudo systemctl daemon-reload
+		sudo udevadm control --reload
+		echo "the EDID now loaded stays until the driver is unloaded (reboot)"
+		;;
+	*) echo "boot-edid on [EDID file] | off"; exit 1 ;;
+	esac
+	;;
 ov5647)
 	# RAW10 Bayer in, the ISP demosaics; 1296x972 is the 2x2 binned mode
 	W=${2:-1296} H=${3:-972}
@@ -121,5 +153,5 @@ grab)
 	echo "view: ffmpeg -f rawvideo -pix_fmt nv12 -s $1x$2 -i /tmp/csi.nv12 -frames 1 /tmp/csi.png"
 	;;
 *)
-	sed -n '2,15p' "$0"; exit 1 ;;
+	sed -n '2,18p' "$0"; exit 1 ;;
 esac

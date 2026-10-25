@@ -1,0 +1,7 @@
+[Unit]
+Description=Load the TC358743 (C790) EDID into %i
+Documentation=file:/usr/local/sbin/tc358743-edid.sh
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/tc358743-edid.sh /dev/%i

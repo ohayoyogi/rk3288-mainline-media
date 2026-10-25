@@ -47,6 +47,7 @@ the stateless encoder API lands.
 | `scripts/build-camera-overlays.sh` | compiles the DT overlays |
 | `scripts/tinker-kernel-h264enc.sh` | installs the kernel tarball and switches between it and the stock kernel |
 | `scripts/tinker-camera.sh` | installs the camera modules/overlays and sets up the media pipeline (OV5647 / HDMI) |
+| `scripts/tc358743-edid.{sh,rules}`, `scripts/tc358743-edid@.service` | loads the EDID when the TC358743 appears, so the HDMI source sees a monitor without a capture running (`tinker-camera.sh boot-edid on`) |
 | `scripts/tinker-h264enc-test.sh` | encoder smoke test on the board |
 | `scripts/csi-record.py`, `scripts/frame-check.py` | capture diagnostics: stale-buffer detection, MI register sampling |
 | `scripts/make-edid-1080p50.py` | generates the 1080p50 EDID |
@@ -71,6 +72,7 @@ bash scripts/build-gstreamer-h264enc.sh
 bash scripts/build-camera-overlays.sh
 tinker-camera.sh install DIR && tinker-camera.sh enable tc358743   # or ov5647, then reboot
 tinker-camera.sh hdmi 1280 720 && tinker-camera.sh grab 30
+tinker-camera.sh boot-edid on   # optional: EDID (= HDMI hot-plug) at boot; no-op without a TC358743
 ```
 
 The build scripts pin their inputs (kernel 6.12.58, Armbian v25.11.1,
