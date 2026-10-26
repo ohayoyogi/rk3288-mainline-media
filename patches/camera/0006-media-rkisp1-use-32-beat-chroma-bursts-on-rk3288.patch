@@ -15,10 +15,10 @@ clean; luma bursts of 64 are fine.
  3 files changed, 9 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c b/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c
-index 2bddb4fa8..c929b05ae 100644
+index 6dcefd144..486cb73e1 100644
 --- a/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c
 +++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c
-@@ -453,7 +453,10 @@ static void rkisp1_mi_config_ctrl(struct rkisp1_capture *cap)
+@@ -451,7 +451,10 @@ static void rkisp1_mi_config_ctrl(struct rkisp1_capture *cap)
  	mi_ctrl |= RKISP1_CIF_MI_CTRL_BURST_LEN_LUM_64;
  
  	mi_ctrl &= ~GENMASK(19, 18);
@@ -31,10 +31,10 @@ index 2bddb4fa8..c929b05ae 100644
  	mi_ctrl |= RKISP1_CIF_MI_CTRL_INIT_BASE_EN |
  		   RKISP1_CIF_MI_CTRL_INIT_OFFSET_EN;
 diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h b/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h
-index ca952fd08..ffc9f0e1c 100644
+index f4a65e537..eafbe8605 100644
 --- a/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h
 +++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h
-@@ -118,6 +118,8 @@ enum rkisp1_isp_pad {
+@@ -119,6 +119,8 @@ enum rkisp1_isp_pad {
   * @RKISP1_FEATURE_DMA_34BIT: The ISP uses 34-bit DMA addresses
   * @RKISP1_FEATURE_BLS: The ISP has a dedicated BLS block
   * @RKISP1_FEATURE_COMPAND: The ISP has a companding block
@@ -43,7 +43,7 @@ index ca952fd08..ffc9f0e1c 100644
   *
   * The ISP features are stored in a bitmask in &rkisp1_info.features and allow
   * the driver to implement support for features present in some ISP versions
-@@ -131,6 +133,7 @@ enum rkisp1_feature {
+@@ -132,6 +134,7 @@ enum rkisp1_feature {
  	RKISP1_FEATURE_DMA_34BIT = BIT(4),
  	RKISP1_FEATURE_BLS = BIT(5),
  	RKISP1_FEATURE_COMPAND = BIT(6),
@@ -52,10 +52,10 @@ index ca952fd08..ffc9f0e1c 100644
  
  #define rkisp1_has_feature(rkisp1, feature) \
 diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c b/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c
-index 6b56e71b9..e087114d8 100644
+index f55d9cab1..2d552013a 100644
 --- a/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c
 +++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c
-@@ -537,7 +537,8 @@ static const struct rkisp1_info rk3288_isp_info = {
+@@ -532,7 +532,8 @@ static const struct rkisp1_info rk3288_isp_info = {
  	.features = RKISP1_FEATURE_MIPI_CSI2
  		  | RKISP1_FEATURE_SELF_PATH
  		  | RKISP1_FEATURE_DUAL_CROP

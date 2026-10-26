@@ -1,15 +1,17 @@
 #!/bin/bash
 # Switch the Tinker Board between the stock Armbian kernel and the
-# H.264-encoder test kernel ($TEST, default 6.12.58-h264enc). Run on the
+# H.264-encoder test kernel ($TEST, default 6.18.58-h264enc). Run on the
 # Tinker with sudo. Build the tarball with scripts/build-h264enc-kernel.sh.
 #
-#   sudo ./tinker-kernel-h264enc.sh install /tmp/h264enc-kernel-6.12.58.tar.gz
+#   sudo ./tinker-kernel-h264enc.sh install /tmp/h264enc-kernel-6.18.58.tar.gz
 #   sudo ./tinker-kernel-h264enc.sh use-test     # boot the test kernel next time
 #   sudo ./tinker-kernel-h264enc.sh use-stock    # boot the stock kernel next time
 #   sudo ./tinker-kernel-h264enc.sh status
 #
-# Only the /boot/zImage and /boot/uInitrd symlinks are switched; the stock
-# kernel, its modules and the DTBs are never touched.
+# Only the /boot/zImage, /boot/uInitrd and /boot/dtb symlinks are switched
+# (/boot/dtb only when the tarball brought dtb-$TEST); the stock kernel, its
+# modules and its DTBs are never touched. Older test kernels stay installed:
+# "TEST=6.12.58-h264enc ... use-test" boots one of them again.
 #
 # If the test kernel does not boot, stop U-Boot on the serial console
 # (UART2, 115200) and run:
@@ -24,11 +26,19 @@
 set -euo pipefail
 
 STOCK=${STOCK:-$(ls /boot/vmlinuz-*-current-rockchip 2>/dev/null | sort -V | tail -1 | sed 's|.*/vmlinuz-||')}
-TEST=${TEST:-6.12.58-h264enc}
+TEST=${TEST:-6.18.58-h264enc}
 
 link() {
 	ln -sfn "vmlinuz-$1" /boot/zImage
 	ln -sfn "uInitrd-$1" /boot/uInitrd
+	# DTBs of the same kernel version, else the stock ones
+	if [ -L /boot/dtb ]; then
+		if [ -d "/boot/dtb-$1" ]; then
+			ln -sfn "dtb-$1" /boot/dtb
+		elif [ -d "/boot/dtb-$STOCK" ]; then
+			ln -sfn "dtb-$STOCK" /boot/dtb
+		fi
+	fi
 	sync
 	echo "next boot: $1"
 }
@@ -40,6 +50,11 @@ install)
 	# GNU tar replaces it with a real directory and breaks every program.
 	tar -xzf "$tarball" -C / --keep-directory-symlink --no-overwrite-dir
 	depmod -a "$TEST"
+	# Armbian's overlays (armbianEnv.txt "overlays=") come with the stock DTBs
+	if [ -d "/boot/dtb-$TEST" ] && [ ! -e "/boot/dtb-$TEST/overlay" ] &&
+	   [ -d "/boot/dtb-$STOCK/overlay" ]; then
+		cp -a "/boot/dtb-$STOCK/overlay" "/boot/dtb-$TEST/"
+	fi
 	if [ -e "/boot/initrd.img-$TEST" ]; then
 		update-initramfs -u -k "$TEST"
 	else
@@ -56,7 +71,7 @@ use-test)  link "$TEST" ;;
 use-stock) link "$STOCK" ;;
 status)
 	echo "running: $(uname -r)"
-	ls -la /boot/zImage /boot/uInitrd
+	ls -la /boot/zImage /boot/uInitrd /boot/dtb
 	;;
 *) echo "usage: $0 install <tar.gz>|use-test|use-stock|status" >&2; exit 1 ;;
 esac

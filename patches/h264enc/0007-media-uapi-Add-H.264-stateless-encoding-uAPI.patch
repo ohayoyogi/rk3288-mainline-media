@@ -1,4 +1,4 @@
-From 410ed96a912bd4fddb068518939733cb1c3a4a7a Mon Sep 17 00:00:00 2001
+From d3772fe063b6c7f8bad0f2aab1fd612a94788d01 Mon Sep 17 00:00:00 2001
 From: Andrzej Pietrasiewicz <andrzej.p@collabora.com>
 Date: Thu, 16 Nov 2023 16:48:15 +0100
 Subject: [PATCH 07/14] media: uapi: Add H.264 stateless encoding uAPI
@@ -6,17 +6,17 @@ Subject: [PATCH 07/14] media: uapi: Add H.264 stateless encoding uAPI
 Link: https://lore.kernel.org/r/20231116154816.70959-6-andrzej.p@collabora.com
 Signed-off-by: Andrzej Pietrasiewicz <andrzej.p@collabora.com>
 ---
- drivers/media/v4l2-core/v4l2-ctrls-core.c | 54 ++++++++++++++
+ drivers/media/v4l2-core/v4l2-ctrls-core.c | 53 ++++++++++++++
  drivers/media/v4l2-core/v4l2-ctrls-defs.c |  9 +++
- include/uapi/linux/v4l2-controls.h        | 85 +++++++++++++++++++++++
+ include/uapi/linux/v4l2-controls.h        | 86 +++++++++++++++++++++++
  include/uapi/linux/videodev2.h            |  2 +
  4 files changed, 150 insertions(+)
 
 diff --git a/drivers/media/v4l2-core/v4l2-ctrls-core.c b/drivers/media/v4l2-core/v4l2-ctrls-core.c
-index 3d3291b81..4ab94bbfc 100644
+index b72515af8..354665517 100644
 --- a/drivers/media/v4l2-core/v4l2-ctrls-core.c
 +++ b/drivers/media/v4l2-core/v4l2-ctrls-core.c
-@@ -793,6 +793,48 @@ static int validate_av1_sequence(struct v4l2_ctrl_av1_sequence *s)
+@@ -883,6 +883,48 @@ static int validate_av1_sequence(struct v4l2_ctrl_av1_sequence *s)
  	return 0;
  }
  
@@ -65,20 +65,19 @@ index 3d3291b81..4ab94bbfc 100644
  /*
   * Compound controls validation requires setting unused fields/flags to zero
   * in order to properly detect unchanged controls with v4l2_ctrl_type_op_equal's
-@@ -1182,6 +1224,12 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
+@@ -1320,6 +1362,11 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
+ 		if (!rect->width || !rect->height)
  			return -EINVAL;
  		break;
- 
 +	case V4L2_CTRL_TYPE_H264_ENCODE_PARAMS:
 +		return validate_h264_encode_params(p);
 +
 +	case V4L2_CTRL_TYPE_H264_ENCODE_RC:
 +		return validate_h264_encode_rc(p);
-+
+ 
  	default:
  		return -EINVAL;
- 	}
-@@ -1884,6 +1932,12 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
+@@ -2036,6 +2083,12 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
  	case V4L2_CTRL_TYPE_VP8_ENCODE_PARAMS:
  		elem_size = sizeof(struct v4l2_ctrl_vp8_encode_params);
  		break;
@@ -92,7 +91,7 @@ index 3d3291b81..4ab94bbfc 100644
  		if (type < V4L2_CTRL_COMPOUND_TYPES)
  			elem_size = sizeof(s32);
 diff --git a/drivers/media/v4l2-core/v4l2-ctrls-defs.c b/drivers/media/v4l2-core/v4l2-ctrls-defs.c
-index 50e7feb91..0441dd29b 100644
+index 9b265281f..cde5c3dab 100644
 --- a/drivers/media/v4l2-core/v4l2-ctrls-defs.c
 +++ b/drivers/media/v4l2-core/v4l2-ctrls-defs.c
 @@ -1240,6 +1240,9 @@ const char *v4l2_ctrl_get_name(u32 id)
@@ -119,10 +118,10 @@ index 50e7feb91..0441dd29b 100644
  		*type = V4L2_CTRL_TYPE_INTEGER;
  		break;
 diff --git a/include/uapi/linux/v4l2-controls.h b/include/uapi/linux/v4l2-controls.h
-index c8c86fc85..666409121 100644
+index 9eefc206a..77eeb3b2a 100644
 --- a/include/uapi/linux/v4l2-controls.h
 +++ b/include/uapi/linux/v4l2-controls.h
-@@ -1694,6 +1694,91 @@ struct v4l2_ctrl_h264_decode_params {
+@@ -1707,6 +1707,92 @@ struct v4l2_ctrl_h264_decode_params {
  	__u32 flags;
  };
  
@@ -211,14 +210,15 @@ index c8c86fc85..666409121 100644
 +	__s32 cp_target_error[6];
 +	__s32 cp_qp_delta[7];
 +};
- 
++
  /* Stateless FWHT control, used by the vicodec driver */
  
+ /* Current FWHT version */
 diff --git a/include/uapi/linux/videodev2.h b/include/uapi/linux/videodev2.h
-index 6883aef55..d4b0dd766 100644
+index ae62210e8..4fcc1540b 100644
 --- a/include/uapi/linux/videodev2.h
 +++ b/include/uapi/linux/videodev2.h
-@@ -1937,6 +1937,8 @@ enum v4l2_ctrl_type {
+@@ -1965,6 +1965,8 @@ enum v4l2_ctrl_type {
  	V4L2_CTRL_TYPE_H264_SLICE_PARAMS    = 0x0203,
  	V4L2_CTRL_TYPE_H264_DECODE_PARAMS   = 0x0204,
  	V4L2_CTRL_TYPE_H264_PRED_WEIGHTS    = 0x0205,

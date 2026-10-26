@@ -1,4 +1,4 @@
-From 2cd98d7e2fe6a8b5c354cf424a8782fe84b4a880 Mon Sep 17 00:00:00 2001
+From fca5f16be910a912d5cc878d6f391436c6751bbf Mon Sep 17 00:00:00 2001
 From: Andrzej Pietrasiewicz <andrzej.p@collabora.com>
 Date: Thu, 16 Nov 2023 16:48:14 +0100
 Subject: [PATCH 06/14] media: verisilicon: Update H1 register definitions

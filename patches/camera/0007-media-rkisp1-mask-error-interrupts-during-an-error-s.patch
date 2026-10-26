@@ -20,10 +20,10 @@ through, and say so once in a while.
  3 files changed, 63 insertions(+), 5 deletions(-)
 
 diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h b/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h
-index ffc9f0e1c..fc5171406 100644
+index eafbe8605..88b407f2f 100644
 --- a/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h
 +++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h
-@@ -200,6 +200,9 @@ struct rkisp1_sensor_async {
+@@ -209,6 +209,9 @@ struct rkisp1_sensor_async {
   * @sd: v4l2_subdev variable
   * @pads: media pads
   * @source: source in-use, set when starting streaming
@@ -33,7 +33,7 @@ index ffc9f0e1c..fc5171406 100644
   */
  struct rkisp1_csi {
  	struct rkisp1_device *rkisp1;
-@@ -208,8 +211,18 @@ struct rkisp1_csi {
+@@ -217,8 +220,18 @@ struct rkisp1_csi {
  	struct v4l2_subdev sd;
  	struct media_pad pads[RKISP1_CSI_PAD_NUM];
  	struct v4l2_subdev *source;
@@ -52,7 +52,7 @@ index ffc9f0e1c..fc5171406 100644
  /*
   * struct rkisp1_isp - ISP subdev entity
   *
-@@ -218,6 +231,9 @@ struct rkisp1_csi {
+@@ -227,6 +240,9 @@ struct rkisp1_csi {
   * @pads:			media pads
   * @sink_fmt:			input format
   * @frame_sequence:		used to synchronize frame_id between video devices.
@@ -62,7 +62,7 @@ index ffc9f0e1c..fc5171406 100644
   */
  struct rkisp1_isp {
  	struct v4l2_subdev sd;
-@@ -225,6 +241,9 @@ struct rkisp1_isp {
+@@ -234,6 +250,9 @@ struct rkisp1_isp {
  	struct media_pad pads[RKISP1_ISP_PAD_MAX];
  	const struct rkisp1_mbus_info *sink_fmt;
  	__u32 frame_sequence;
@@ -122,7 +122,7 @@ index 315139c8e..3dae6a5f4 100644
  
  	return IRQ_HANDLED;
 diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-isp.c b/drivers/media/platform/rockchip/rkisp1/rkisp1-isp.c
-index d94917211..15c8024ce 100644
+index 8c29a1c93..307a918d9 100644
 --- a/drivers/media/platform/rockchip/rkisp1/rkisp1-isp.c
 +++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-isp.c
 @@ -304,6 +304,9 @@ static int rkisp1_config_isp(struct rkisp1_isp *isp,

@@ -12,10 +12,10 @@ all wired lanes as PIXEL_RATE.
  1 file changed, 24 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/media/i2c/tc358743.c b/drivers/media/i2c/tc358743.c
-index 4a550f302..9cdbf432a 100644
+index a0ca19359..59b590347 100644
 --- a/drivers/media/i2c/tc358743.c
 +++ b/drivers/media/i2c/tc358743.c
-@@ -81,6 +81,7 @@ struct tc358743_state {
+@@ -95,6 +95,7 @@ struct tc358743_state {
  	struct v4l2_ctrl *detect_tx_5v_ctrl;
  	struct v4l2_ctrl *audio_sampling_rate_ctrl;
  	struct v4l2_ctrl *audio_present_ctrl;
@@ -23,7 +23,7 @@ index 4a550f302..9cdbf432a 100644
  
  	struct delayed_work delayed_work_enable_hotplug;
  
-@@ -2108,11 +2109,33 @@ static int tc358743_probe(struct i2c_client *client)
+@@ -2215,11 +2216,33 @@ static int tc358743_probe(struct i2c_client *client)
  	}
  
  	/* control handlers */

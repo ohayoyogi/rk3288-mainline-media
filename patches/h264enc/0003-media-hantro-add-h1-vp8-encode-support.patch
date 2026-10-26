@@ -1,4 +1,4 @@
-From 0810ec6f47dd0e4c584caa0b896516903864ebef Mon Sep 17 00:00:00 2001
+From 1e1584cb68b0195b1264cd2e5bd652fba58505d6 Mon Sep 17 00:00:00 2001
 From: Hugues Fruchet <hugues.fruchet@foss.st.com>
 Date: Wed, 4 Oct 2023 12:37:17 +0200
 Subject: [PATCH 03/14] media: hantro: add h1 vp8 encode support
@@ -1731,10 +1731,10 @@ index 000000000..b7a635fb7
 +		dst_buf->flags |= V4L2_BUF_FLAG_PFRAME;
 +}
 diff --git a/drivers/media/platform/verisilicon/hantro_hw.h b/drivers/media/platform/verisilicon/hantro_hw.h
-index 61cbe0927..e2dfd17c3 100644
+index 86b209577..10582fef1 100644
 --- a/drivers/media/platform/verisilicon/hantro_hw.h
 +++ b/drivers/media/platform/verisilicon/hantro_hw.h
-@@ -675,4 +675,7 @@ int hantro_vp8_enc_init(struct hantro_ctx *ctx);
+@@ -676,4 +676,7 @@ int hantro_vp8_enc_init(struct hantro_ctx *ctx);
  void rockchip_vpu2_vp8_enc_done(struct hantro_ctx *ctx);
  void hantro_vp8_enc_exit(struct hantro_ctx *ctx);
  

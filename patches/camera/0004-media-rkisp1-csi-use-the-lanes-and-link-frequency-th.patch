@@ -13,7 +13,7 @@ there (v4l2_get_link_freq falls back to PIXEL_RATE).
  1 file changed, 27 insertions(+), 12 deletions(-)
 
 diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-csi.c b/drivers/media/platform/rockchip/rkisp1/rkisp1-csi.c
-index 841e58c20..315139c8e 100644
+index 841e58c..9c175c0 100644
 --- a/drivers/media/platform/rockchip/rkisp1/rkisp1-csi.c
 +++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-csi.c
 @@ -58,12 +58,10 @@ int rkisp1_csi_link_sensor(struct rkisp1_device *rkisp1, struct v4l2_subdev *sd,
@@ -67,8 +67,8 @@ index 841e58c20..315139c8e 100644
 -	if (!pixel_clock) {
 -		dev_err(rkisp1->dev, "Invalid pixel rate value\n");
 +	/* LINK_FREQ when the source has it, PIXEL_RATE otherwise */
-+	link_freq = v4l2_get_link_freq(source->ctrl_handler, format->bus_width,
-+				       lanes * 2);
++	link_freq = v4l2_get_link_freq(&source->entity.pads[source_pad],
++				       format->bus_width, lanes * 2);
 +	if (link_freq <= 0) {
 +		dev_err(rkisp1->dev, "Invalid link frequency\n");
  		return -EINVAL;

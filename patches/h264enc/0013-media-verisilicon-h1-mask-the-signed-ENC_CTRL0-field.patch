@@ -1,4 +1,4 @@
-From 6692cfa622fca91accc2c4ec8952ea2c404007af Mon Sep 17 00:00:00 2001
+From 2c57b576b3df0e24d9d5ca0dccacfe52715a44f0 Mon Sep 17 00:00:00 2001
 From: ohayoyogi <77435669+ohayoyogi@users.noreply.github.com>
 Date: Wed, 21 Oct 2026 01:27:46 +0900
 Subject: [PATCH 13/14] media: verisilicon: h1: mask the signed ENC_CTRL0

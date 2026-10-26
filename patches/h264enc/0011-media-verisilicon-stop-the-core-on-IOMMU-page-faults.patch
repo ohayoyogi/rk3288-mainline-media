@@ -1,4 +1,4 @@
-From f74de354000b2b1432519412121f0a20d9ccc7ef Mon Sep 17 00:00:00 2001
+From 98b498427ba4531f40365307777db54212adc94d Mon Sep 17 00:00:00 2001
 From: ohayoyogi <77435669+ohayoyogi@users.noreply.github.com>
 Date: Tue, 20 Oct 2026 22:18:08 +0900
 Subject: [PATCH 11/14] media: verisilicon: stop the core on IOMMU page faults
@@ -8,7 +8,7 @@ Subject: [PATCH 11/14] media: verisilicon: stop the core on IOMMU page faults
  1 file changed, 34 insertions(+)
 
 diff --git a/drivers/media/platform/verisilicon/hantro_drv.c b/drivers/media/platform/verisilicon/hantro_drv.c
-index 44edff14c..0005a68d8 100644
+index c04a7f63f..ef6825a3a 100644
 --- a/drivers/media/platform/verisilicon/hantro_drv.c
 +++ b/drivers/media/platform/verisilicon/hantro_drv.c
 @@ -11,6 +11,7 @@
@@ -18,9 +18,9 @@ index 44edff14c..0005a68d8 100644
 +#include <linux/iommu.h>
  #include <linux/module.h>
  #include <linux/of.h>
- #include <linux/platform_device.h>
-@@ -1061,6 +1062,37 @@ static int hantro_disable_multicore(struct hantro_dev *vpu)
- 	return 0;
+ #include <linux/of_platform.h>
+@@ -1094,6 +1095,37 @@ static struct v4l2_m2m_dev *hantro_get_v4l2_m2m_dev(struct hantro_dev *vpu)
+ 	return v4l2_m2m_init(&vpu_m2m_ops);
  }
  
 +/*
@@ -57,7 +57,7 @@ index 44edff14c..0005a68d8 100644
  static int hantro_probe(struct platform_device *pdev)
  {
  	const struct of_device_id *match;
-@@ -1219,6 +1251,8 @@ static int hantro_probe(struct platform_device *pdev)
+@@ -1252,6 +1284,8 @@ static int hantro_probe(struct platform_device *pdev)
  		goto err_v4l2_unreg;
  	}
  

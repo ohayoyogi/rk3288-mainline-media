@@ -1,6 +1,6 @@
 #!/bin/bash
 # Check the H.264 stateless encoder on the Tinker Board after booting
-# 6.12.58-h264enc. Run as the normal user (member of the video group).
+# the h264enc kernel. Run as the normal user (member of the video group).
 #
 #   ./tinker-h264enc-test.sh            # kernel side only
 #   ./tinker-h264enc-test.sh gst        # also encode with GStreamer v4l2slh264enc

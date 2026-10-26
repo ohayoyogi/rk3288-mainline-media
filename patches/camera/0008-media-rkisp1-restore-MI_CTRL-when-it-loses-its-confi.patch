@@ -29,10 +29,10 @@ restored within a frame, no stale frames afterwards.
  4 files changed, 78 insertions(+), 13 deletions(-)
 
 diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c b/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c
-index c929b05ae..1438b550b 100644
+index 486cb73e1..bff68d02d 100644
 --- a/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c
 +++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c
-@@ -735,20 +735,14 @@ static void rkisp1_dummy_buf_destroy(struct rkisp1_capture *cap)
+@@ -733,20 +733,14 @@ static void rkisp1_dummy_buf_destroy(struct rkisp1_capture *cap)
  		       cap->buf.dummy.dma_addr, DMA_ATTR_NO_KERNEL_MAPPING);
  }
  
@@ -58,7 +58,7 @@ index c929b05ae..1438b550b 100644
  
  		rkisp1_write(cap->rkisp1, cap->config->mi.y_base_ad_init,
  			     buff_addr[RKISP1_PLANE_Y] >> shift);
-@@ -791,6 +785,57 @@ static void rkisp1_set_next_buf(struct rkisp1_capture *cap)
+@@ -789,6 +783,57 @@ static void rkisp1_set_next_buf(struct rkisp1_capture *cap)
  	rkisp1_write(cap->rkisp1, cap->config->mi.cr_offs_cnt_init, 0);
  }
  
@@ -116,7 +116,7 @@ index c929b05ae..1438b550b 100644
  /*
   * This function is called when a frame end comes. The next frame
   * is processing and we should set up buffer for next-next frame,
-@@ -800,20 +845,32 @@ static void rkisp1_handle_buffer(struct rkisp1_capture *cap)
+@@ -798,20 +843,32 @@ static void rkisp1_handle_buffer(struct rkisp1_capture *cap)
  {
  	struct rkisp1_isp *isp = &cap->rkisp1->isp;
  	struct rkisp1_buffer *curr_buf;
@@ -151,10 +151,10 @@ index c929b05ae..1438b550b 100644
  }
  
 diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h b/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h
-index fc5171406..5785763f4 100644
+index 88b407f2f..b775366fa 100644
 --- a/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h
 +++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-common.h
-@@ -120,6 +120,8 @@ enum rkisp1_isp_pad {
+@@ -121,6 +121,8 @@ enum rkisp1_isp_pad {
   * @RKISP1_FEATURE_COMPAND: The ISP has a companding block
   * @RKISP1_FEATURE_CHROM_BURST_32: 64-beat chroma write bursts corrupt the
   *	chroma plane, use 32-beat bursts
@@ -163,7 +163,7 @@ index fc5171406..5785763f4 100644
   *
   * The ISP features are stored in a bitmask in &rkisp1_info.features and allow
   * the driver to implement support for features present in some ISP versions
-@@ -134,6 +136,7 @@ enum rkisp1_feature {
+@@ -135,6 +137,7 @@ enum rkisp1_feature {
  	RKISP1_FEATURE_BLS = BIT(5),
  	RKISP1_FEATURE_COMPAND = BIT(6),
  	RKISP1_FEATURE_CHROM_BURST_32 = BIT(7),
@@ -171,7 +171,7 @@ index fc5171406..5785763f4 100644
  };
  
  #define rkisp1_has_feature(rkisp1, feature) \
-@@ -475,6 +478,7 @@ struct rkisp1_resizer {
+@@ -486,6 +489,7 @@ struct rkisp1_resizer {
   * @img_stabilization_size_error: size error is generated in image stabilization submodule
   * @inform_size_err:		  size error is generated in inform submodule
   * @mipi_error:			  mipi error occurred
@@ -179,7 +179,7 @@ index fc5171406..5785763f4 100644
   * @stats_error:		  writing to the 'Interrupt clear register' did not clear
   *				  it in the register 'Masked interrupt status'
   * @stop_timeout:		  upon stream stop, the capture waits 1 second for the isr to stop
-@@ -491,6 +495,7 @@ struct rkisp1_debug {
+@@ -502,6 +506,7 @@ struct rkisp1_debug {
  	unsigned long irq_delay;
  	unsigned long mipi_error;
  	unsigned long stats_error;
@@ -201,10 +201,10 @@ index 79cda589d..812d952a9 100644
  			     &debug->stop_timeout[RKISP1_MAINPATH]);
  	debugfs_create_ulong("sp_stop_timeout", 0444, debug->debugfs_dir,
 diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c b/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c
-index e087114d8..6646aeba7 100644
+index 2d552013a..a38d22200 100644
 --- a/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c
 +++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-dev.c
-@@ -538,7 +538,8 @@ static const struct rkisp1_info rk3288_isp_info = {
+@@ -533,7 +533,8 @@ static const struct rkisp1_info rk3288_isp_info = {
  		  | RKISP1_FEATURE_SELF_PATH
  		  | RKISP1_FEATURE_DUAL_CROP
  		  | RKISP1_FEATURE_BLS

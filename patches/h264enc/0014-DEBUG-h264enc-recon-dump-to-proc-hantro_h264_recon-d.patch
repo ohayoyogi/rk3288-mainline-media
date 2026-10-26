@@ -1,4 +1,4 @@
-From 8a28e723a4fe11761633bb16daad919830a43cde Mon Sep 17 00:00:00 2001
+From 6b41118d1f95327a7f0a427530175c87a60692d4 Mon Sep 17 00:00:00 2001
 From: ohayoyogi <77435669+ohayoyogi@users.noreply.github.com>
 Date: Wed, 21 Oct 2026 01:27:46 +0900
 Subject: [PATCH 14/14] DEBUG: h264enc recon dump to /proc/hantro_h264_recon
@@ -97,7 +97,7 @@ index 91584c73e..6ac548820 100644
  		struct hantro_aux_buf *b = &ctx->h264_enc.luma_internal[ctx->h264_enc.reconstr_idx];
  		size_t ysz = ctx->h264_enc.chroma_internal[ctx->h264_enc.reconstr_idx].dma - b->dma;
 diff --git a/drivers/media/platform/verisilicon/hantro_h264.c b/drivers/media/platform/verisilicon/hantro_h264.c
-index dd6c9907a..4140f4e7c 100644
+index ecee5635e..9dbf79c3f 100644
 --- a/drivers/media/platform/verisilicon/hantro_h264.c
 +++ b/drivers/media/platform/verisilicon/hantro_h264.c
 @@ -1184,6 +1184,8 @@ static void h264_enc_init_cabac_table(struct hantro_ctx *ctx)

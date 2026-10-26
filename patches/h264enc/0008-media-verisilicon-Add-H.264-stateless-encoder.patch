@@ -1,4 +1,4 @@
-From 885492720ab51c7cd285a59382046d78a4a6f177 Mon Sep 17 00:00:00 2001
+From e9cba2aa4274c5c545c134c728676c16d72d5a6d Mon Sep 17 00:00:00 2001
 From: Andrzej Pietrasiewicz <andrzej.p@collabora.com>
 Date: Thu, 16 Nov 2023 16:48:16 +0100
 Subject: [PATCH 08/14] media: verisilicon: Add H.264 stateless encoder
@@ -31,7 +31,7 @@ index 9fc4fcc8d..61f8a6169 100644
  		hantro_g1_h264_dec.o \
  		hantro_g1_mpeg2_dec.o \
 diff --git a/drivers/media/platform/verisilicon/hantro.h b/drivers/media/platform/verisilicon/hantro.h
-index 1b7fc7872..4a248557b 100644
+index 9e0d4bf2b..7c43e43d9 100644
 --- a/drivers/media/platform/verisilicon/hantro.h
 +++ b/drivers/media/platform/verisilicon/hantro.h
 @@ -33,6 +33,7 @@ struct hantro_postproc_ops;
@@ -42,7 +42,7 @@ index 1b7fc7872..4a248557b 100644
  #define HANTRO_ENCODERS		0x0000ffff
  #define HANTRO_MPEG2_DECODER	BIT(16)
  #define HANTRO_VP8_DECODER	BIT(17)
-@@ -126,6 +127,7 @@ enum hantro_codec_mode {
+@@ -128,6 +129,7 @@ enum hantro_codec_mode {
  	HANTRO_MODE_VP9_DEC,
  	HANTRO_MODE_AV1_DEC,
  	HANTRO_MODE_VP8_ENC,
@@ -50,7 +50,7 @@ index 1b7fc7872..4a248557b 100644
  };
  
  /*
-@@ -276,6 +278,7 @@ struct hantro_ctx {
+@@ -280,6 +282,7 @@ struct hantro_ctx {
  		struct hantro_vp9_dec_hw_ctx vp9_dec;
  		struct hantro_av1_dec_hw_ctx av1_dec;
  		struct hantro_vp8_enc_hw_ctx vp8_enc;
@@ -59,7 +59,7 @@ index 1b7fc7872..4a248557b 100644
  };
  
 diff --git a/drivers/media/platform/verisilicon/hantro_drv.c b/drivers/media/platform/verisilicon/hantro_drv.c
-index 47f550602..44edff14c 100644
+index 6cd059a76..c04a7f63f 100644
 --- a/drivers/media/platform/verisilicon/hantro_drv.c
 +++ b/drivers/media/platform/verisilicon/hantro_drv.c
 @@ -604,6 +604,16 @@ static const struct hantro_ctrl controls[] = {
@@ -609,7 +609,7 @@ index efb46da23..4be852630 100644
  #define H1_REG_CHKPT_DELTA_QP				0x090
  #define     H1_REG_CHKPT_DELTA_QP_CHK0(x)		(((x) & 0x0f) << 0)
 diff --git a/drivers/media/platform/verisilicon/hantro_h264.c b/drivers/media/platform/verisilicon/hantro_h264.c
-index 4e9a0ecf5..ebe186d19 100644
+index 2414782f1..9bd064611 100644
 --- a/drivers/media/platform/verisilicon/hantro_h264.c
 +++ b/drivers/media/platform/verisilicon/hantro_h264.c
 @@ -198,6 +198,586 @@ static const u32 h264_cabac_table[] = {
@@ -1401,7 +1401,7 @@ index 4e9a0ecf5..ebe186d19 100644
 +	return ret;
 +}
 diff --git a/drivers/media/platform/verisilicon/hantro_hw.h b/drivers/media/platform/verisilicon/hantro_hw.h
-index e2dfd17c3..083a7db81 100644
+index 10582fef1..b32777c00 100644
 --- a/drivers/media/platform/verisilicon/hantro_hw.h
 +++ b/drivers/media/platform/verisilicon/hantro_hw.h
 @@ -428,6 +428,24 @@ struct hantro_vp8_enc_hw_ctx {
@@ -1429,7 +1429,7 @@ index e2dfd17c3..083a7db81 100644
  /**
   * struct hantro_codec_ops - codec mode specific operations
   *
-@@ -678,4 +696,9 @@ void hantro_vp8_enc_exit(struct hantro_ctx *ctx);
+@@ -679,4 +697,9 @@ void hantro_vp8_enc_exit(struct hantro_ctx *ctx);
  int hantro_h1_vp8_enc_run(struct hantro_ctx *ctx);
  void hantro_h1_vp8_enc_done(struct hantro_ctx *ctx);
  

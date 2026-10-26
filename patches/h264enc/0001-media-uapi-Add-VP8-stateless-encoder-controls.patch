@@ -1,4 +1,4 @@
-From e455d10dd3a0196cc208d5fe5b27111fef990ddc Mon Sep 17 00:00:00 2001
+From a8ddf7796c60b17261e85f8a06c0656bdb01323d Mon Sep 17 00:00:00 2001
 From: Andrzej Pietrasiewicz <andrzej.p@collabora.com>
 Date: Wed, 4 Oct 2023 12:37:15 +0200
 Subject: [PATCH 01/14] media: uapi: Add VP8 stateless encoder controls
@@ -15,18 +15,18 @@ Signed-off-by: Hugues Fruchet <hugues.fruchet@foss.st.com>
  5 files changed, 114 insertions(+)
 
 diff --git a/drivers/media/v4l2-core/v4l2-ctrls-core.c b/drivers/media/v4l2-core/v4l2-ctrls-core.c
-index 4cc326851..3d3291b81 100644
+index 02e2ae93d..b72515af8 100644
 --- a/drivers/media/v4l2-core/v4l2-ctrls-core.c
 +++ b/drivers/media/v4l2-core/v4l2-ctrls-core.c
-@@ -814,6 +814,7 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
- 	struct v4l2_ctrl_hevc_pps *p_hevc_pps;
+@@ -905,6 +905,7 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
+ 	struct v4l2_ctrl_hevc_slice_params *p_hevc_slice_params;
  	struct v4l2_ctrl_hdr10_mastering_display *p_hdr10_mastering;
  	struct v4l2_ctrl_hevc_decode_params *p_hevc_decode_params;
 +	struct v4l2_ctrl_vp8_encode_params *p_vp8_encode_params;
  	struct v4l2_area *area;
+ 	struct v4l2_rect *rect;
  	void *p = ptr.p + idx * ctrl->elem_size;
- 	unsigned int i;
-@@ -1050,6 +1051,15 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
+@@ -1142,6 +1143,15 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
  		zero_padding(p_vp8_frame->coder_state);
  		break;
  
@@ -42,9 +42,9 @@ index 4cc326851..3d3291b81 100644
  	case V4L2_CTRL_TYPE_HEVC_SPS:
  		p_hevc_sps = p;
  
-@@ -1871,6 +1881,9 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
- 	case V4L2_CTRL_TYPE_AREA:
- 		elem_size = sizeof(struct v4l2_area);
+@@ -2023,6 +2033,9 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
+ 	case V4L2_CTRL_TYPE_RECT:
+ 		elem_size = sizeof(struct v4l2_rect);
  		break;
 +	case V4L2_CTRL_TYPE_VP8_ENCODE_PARAMS:
 +		elem_size = sizeof(struct v4l2_ctrl_vp8_encode_params);
@@ -53,7 +53,7 @@ index 4cc326851..3d3291b81 100644
  		if (type < V4L2_CTRL_COMPOUND_TYPES)
  			elem_size = sizeof(s32);
 diff --git a/drivers/media/v4l2-core/v4l2-ctrls-defs.c b/drivers/media/v4l2-core/v4l2-ctrls-defs.c
-index 1ea520112..50e7feb91 100644
+index ad41f6537..9b265281f 100644
 --- a/drivers/media/v4l2-core/v4l2-ctrls-defs.c
 +++ b/drivers/media/v4l2-core/v4l2-ctrls-defs.c
 @@ -1237,6 +1237,8 @@ const char *v4l2_ctrl_get_name(u32 id)
@@ -76,30 +76,30 @@ index 1ea520112..50e7feb91 100644
  		*type = V4L2_CTRL_TYPE_AREA;
  		*flags |= V4L2_CTRL_FLAG_READ_ONLY;
 diff --git a/include/media/v4l2-ctrls.h b/include/media/v4l2-ctrls.h
-index 59679a42b..a165719e1 100644
+index 31fc1bee3..a98eb24fb 100644
 --- a/include/media/v4l2-ctrls.h
 +++ b/include/media/v4l2-ctrls.h
-@@ -56,6 +56,7 @@ struct video_device;
-  * @p_av1_tile_group_entry:	Pointer to an AV1 tile group entry structure.
+@@ -57,6 +57,7 @@ struct video_device;
   * @p_av1_frame:		Pointer to an AV1 frame structure.
   * @p_av1_film_grain:		Pointer to an AV1 film grain structure.
+  * @p_rect:			Pointer to a rectangle.
 + * @p_vp8_encode_params:	Pointer to a VP8 encode parameter structure.
   * @p:				Pointer to a compound value.
   * @p_const:			Pointer to a constant compound value.
   */
-@@ -89,6 +90,7 @@ union v4l2_ctrl_ptr {
- 	struct v4l2_ctrl_av1_tile_group_entry *p_av1_tile_group_entry;
+@@ -91,6 +92,7 @@ union v4l2_ctrl_ptr {
  	struct v4l2_ctrl_av1_frame *p_av1_frame;
  	struct v4l2_ctrl_av1_film_grain *p_av1_film_grain;
+ 	struct v4l2_rect *p_rect;
 +	struct v4l2_ctrl_vp8_encode_params *p_vp8_encode_params;
  	void *p;
  	const void *p_const;
  };
 diff --git a/include/uapi/linux/v4l2-controls.h b/include/uapi/linux/v4l2-controls.h
-index 974fd254e..c8c86fc85 100644
+index 2d30107e0..9eefc206a 100644
 --- a/include/uapi/linux/v4l2-controls.h
 +++ b/include/uapi/linux/v4l2-controls.h
-@@ -3493,6 +3493,97 @@ struct v4l2_ctrl_av1_film_grain {
+@@ -3471,6 +3471,97 @@ struct v4l2_ctrl_av1_film_grain {
  	__u8 reserved[4];
  };
  
@@ -198,10 +198,10 @@ index 974fd254e..c8c86fc85 100644
  #ifndef __KERNEL__
  #define V4L2_CTRL_CLASS_MPEG            V4L2_CTRL_CLASS_CODEC
 diff --git a/include/uapi/linux/videodev2.h b/include/uapi/linux/videodev2.h
-index 67c91a93f..6883aef55 100644
+index becd08fdb..ae62210e8 100644
 --- a/include/uapi/linux/videodev2.h
 +++ b/include/uapi/linux/videodev2.h
-@@ -1836,6 +1836,7 @@ struct v4l2_output {
+@@ -1860,6 +1860,7 @@ struct v4l2_output {
  
  /*
   *	C O N T R O L S
@@ -209,7 +209,7 @@ index 67c91a93f..6883aef55 100644
   */
  struct v4l2_control {
  	__u32		     id;
-@@ -1958,6 +1959,8 @@ enum v4l2_ctrl_type {
+@@ -1986,6 +1987,8 @@ enum v4l2_ctrl_type {
  	V4L2_CTRL_TYPE_AV1_TILE_GROUP_ENTRY = 0x281,
  	V4L2_CTRL_TYPE_AV1_FRAME	    = 0x282,
  	V4L2_CTRL_TYPE_AV1_FILM_GRAIN	    = 0x283,

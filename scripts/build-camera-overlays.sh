@@ -8,7 +8,7 @@
 # name (without .dtbo) to user_overlays= in /boot/armbianEnv.txt, reboot.
 set -euo pipefail
 
-KSRC=${1:-$HOME/h264enc/linux-6.12.58-h264enc}
+KSRC=${1:-$HOME/h264enc/linux-6.18.58-h264enc}
 DIR=$(cd "$(dirname "$0")/../patches/camera/dt" && pwd)
 DTC=$(command -v dtc || echo "$KSRC/scripts/dtc/dtc")
 [ -x "$DTC" ] || { echo "install device-tree-compiler"; exit 1; }

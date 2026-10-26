@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: ohayoyogi <77435669+ohayoyogi@users.noreply.github.com>
+Date: Mon, 26 Oct 2026 11:19:33 +0900
+Subject: [PATCH] media: rkisp1: allocate at least four capture buffers
+
+Since min_queued_buffers went from 3 to 1, VIDIOC_REQBUFS no longer
+rounds a small request up to four buffers. GStreamer's v4l2src asks for
+two when the downstream allocation query carries no minimum (for example
+behind "identity drop-allocation=true"). With two buffers, one is in
+userspace being copied while the other is being filled, so the main path
+writes into the dummy buffer for the frames in between: a TC358743 at
+720p60 delivered 40 fps through v4l2src on 6.18, 60 fps on 6.12.
+
+Keep min_queued_buffers at 1, so streaming still starts with a single
+buffer, and set min_reqbufs_allocation to 4.
+---
+ drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c b/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c
+index bff68d02d..47b96eb7c 100644
+--- a/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c
++++ b/drivers/media/platform/rockchip/rkisp1/rkisp1-capture.c
+@@ -1620,6 +1620,14 @@ static int rkisp1_register_capture(struct rkisp1_capture *cap)
+ 	q->mem_ops = &vb2_dma_contig_memops;
+ 	q->buf_struct_size = sizeof(struct rkisp1_buffer);
+ 	q->min_queued_buffers = 1;
++	/*
++	 * Applications that ask for the minimum (GStreamer v4l2src takes two
++	 * when nothing downstream asks for more) leave the hardware writing
++	 * into the dummy buffer while they hold the other one, and every few
++	 * frames are lost. Allocate four, as before min_queued_buffers came
++	 * down from three.
++	 */
++	q->min_reqbufs_allocation = 4;
+ 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+ 	q->lock = &node->vlock;
+ 	q->dev = cap->rkisp1->dev;
+-- 
+2.43.0
+

@@ -1,4 +1,4 @@
-From ed769f40913567b30bfd549c10c9194df352d181 Mon Sep 17 00:00:00 2001
+From 221f9937689ddc304a11dc2e015d6a2c959f1de0 Mon Sep 17 00:00:00 2001
 From: Andrzej Pietrasiewicz <andrzej.p@collabora.com>
 Date: Thu, 16 Nov 2023 16:48:13 +0100
 Subject: [PATCH 05/14] media: verisilicon: Improve constant's name

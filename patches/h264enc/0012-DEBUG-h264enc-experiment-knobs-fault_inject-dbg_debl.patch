@@ -1,4 +1,4 @@
-From c9fd319dac40c42a47ea6515faab31c78d066926 Mon Sep 17 00:00:00 2001
+From 0f92a075daa0e8f134a5d2c099fbf1f2d8718108 Mon Sep 17 00:00:00 2001
 From: ohayoyogi <77435669+ohayoyogi@users.noreply.github.com>
 Date: Tue, 20 Oct 2026 22:49:56 +0900
 Subject: [PATCH 12/14] DEBUG: h264enc experiment knobs (fault_inject,
