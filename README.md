@@ -47,7 +47,6 @@ were not re-measured.
 | `patches/camera/0009` | rkisp1 allocates at least four capture buffers again (6.18 lowered `min_queued_buffers` to 1, and GStreamer's `v4l2src` then took only two and lost every third frame at 720p60) |
 | `patches/camera/dt/` | Tinker Board overlays: ISP + DPHY + TC358743 or OV5647 |
 | `patches/camera/edid-*.txt` | TC358743 EDIDs: 720p60 preferred (from Spotpear's guide) and 1080p50 preferred |
-| `patches/power/0001` | rk8xx: power the RK808 off in the final power-off stage; without it `shutdown -h` only halts on RK3288 (`Power off not available`) and every rail stays on |
 | `patches/gstreamer/` | GStreamer MR !5676 (`v4l2slh264enc`) built against 1.24: UYVY input, VUI without reordering, copy into macroblock-padded buffers |
 | `scripts/build-h264enc-kernel.sh` | builds the kernel (kernel.org 6.18.58 + Armbian `rockchip-6.18` patches + these) in Docker under WSL |
 | `scripts/build-gstreamer-h264enc.sh` | builds the patched v4l2codecs plugin for armhf |
@@ -59,6 +58,12 @@ were not re-measured.
 | `scripts/csi-record.py`, `scripts/frame-check.py` | capture diagnostics: stale-buffer detection, MI register sampling |
 | `scripts/make-edid-1080p50.py` | generates the 1080p50 EDID |
 | `scripts/tinker-sdmmc-hs.dts` | overlay for a faster SD card mode |
+
+Power off: on RK3288 `shutdown -h` only halted (`Power off not available:
+System halted instead`) and every rail stayed on. The rk8xx fix for that is not
+kept here; it went to Armbian's `rockchip-6.18` / `rockchip-7.3` patch sets as
+[armbian/build#11115](https://github.com/armbian/build/pull/11115), and the
+kernel build uses that pull request's head until it is merged.
 
 ## Building and installing
 
@@ -82,8 +87,9 @@ tinker-camera.sh hdmi 1280 720 && tinker-camera.sh grab 30
 tinker-camera.sh boot-edid on   # optional: EDID (= HDMI hot-plug) at boot; no-op without a TC358743
 ```
 
-The build scripts pin their inputs (kernel 6.18.58, an Armbian main commit,
-GStreamer MR !5676 at 9ef0e91); the GStreamer one stops if the MR head moved.
+The build scripts pin their inputs (kernel 6.18.58; an Armbian commit, the head
+of armbian/build#11115 until it is merged; GStreamer MR !5676 at 9ef0e91); the
+GStreamer one stops if the MR head moved.
 
 ## Known issues
 
@@ -99,8 +105,8 @@ GStreamer MR !5676 at 9ef0e91); the GStreamer one stops if the MR head moved.
 ## Use of AI tools
 
 The patches and scripts written by ohayoyogi (h264enc 0009–0014, camera
-0002–0009, power 0001, and the scripts) were developed with the help of
-Claude Code (Anthropic); the submitter reviewed them and tested them on the
+0002–0009, the scripts, and the rk8xx power-off patch sent to Armbian) were
+developed with the help of Claude Code (Anthropic); the submitter reviewed them and tested them on the
 hardware. The patches by other authors (h264enc 0001–0008, and the former
 camera 0001 backport) are not part of this.
 

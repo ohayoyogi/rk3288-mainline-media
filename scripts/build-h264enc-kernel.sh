@@ -7,7 +7,10 @@
 #
 # Inputs (override with env vars):
 #   KVER       kernel.org version          (6.18.58)
-#   ARMBIAN    armbian/build commit or tag (main of 2026-10-25; needs patch/kernel/archive/rockchip-6.18)
+#   ARMBIAN    armbian/build commit or tag (needs patch/kernel/archive/rockchip-6.18). Default:
+#              the head of armbian/build#11115 (main of 2026-10-26 + the rk8xx power-off
+#              patch, without which "shutdown -h" only halts); move to a main commit once
+#              it is merged
 #   CONFIG     kernel config               (Armbian's config/kernel/linux-rockchip-current.config;
 #              or the board's /boot/config-*, brought up to date with olddefconfig)
 #   WORK       build directory             (~/h264enc)
@@ -16,7 +19,7 @@
 set -euo pipefail
 
 KVER=${KVER:-6.18.58}
-ARMBIAN=${ARMBIAN:-08f004762cbfb966ddf8bbf66b01c9ba89757b63}
+ARMBIAN=${ARMBIAN:-5e2d401c055e6314a8ea0d9ea03a2c8e88852d73}
 WORK=${WORK:-$HOME/h264enc}
 REPO=$(cd "$(dirname "$0")/.." && pwd)
 SRC=$WORK/linux-$KVER-h264enc
@@ -70,10 +73,6 @@ for p in "$REPO"/patches/h264enc/*.patch; do
 done
 # RK3288 ISP / DPHY RX0 / TC358743 for CSI cameras (modules only)
 for p in "$REPO"/patches/camera/*.patch; do
-	git am -q -3 "$p"
-done
-# RK808 power off ("shutdown -h" only halted, the board stayed powered)
-for p in "$REPO"/patches/power/*.patch; do
 	git am -q -3 "$p"
 done
 git log --oneline -20
