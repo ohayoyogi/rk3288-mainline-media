@@ -65,6 +65,10 @@ done
 for p in "$REPO"/patches/camera/*.patch; do
 	git am -q -3 "$p"
 done
+# RK808 power off ("shutdown -h" only halted, the board stayed powered)
+for p in "$REPO"/patches/power/*.patch; do
+	git am -q -3 "$p"
+done
 git log --oneline | head -20
 
 docker run --rm -u "$(id -u):$(id -g)" -v "$WORK:/w" -w "/w/$(basename "$SRC")" \

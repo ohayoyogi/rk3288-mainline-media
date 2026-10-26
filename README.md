@@ -41,6 +41,7 @@ the stateless encoder API lands.
 | `patches/camera/0006–0008` | RK3288 ISP fixes: 32-beat chroma bursts, error-interrupt storm guard, MI_CTRL reset recovery |
 | `patches/camera/dt/` | Tinker Board overlays: ISP + DPHY + TC358743 or OV5647 |
 | `patches/camera/edid-*.txt` | TC358743 EDIDs: 720p60 preferred (from Spotpear's guide) and 1080p50 preferred |
+| `patches/power/0001` | rk8xx: power the RK808 off in the final power-off stage; without it `shutdown -h` only halts on RK3288 (`Power off not available`) and every rail stays on |
 | `patches/gstreamer/` | GStreamer MR !5676 (`v4l2slh264enc`) built against 1.24: UYVY input, VUI without reordering, copy into macroblock-padded buffers |
 | `scripts/build-h264enc-kernel.sh` | builds the kernel (kernel.org 6.12.58 + Armbian patches + these) in Docker under WSL |
 | `scripts/build-gstreamer-h264enc.sh` | builds the patched v4l2codecs plugin for armhf |
