@@ -44,7 +44,6 @@ were not re-measured.
 | `patches/camera/0002–0003` | DPHY RX0 and rkisp1 support for RK3288 (based on Karthik Poduval's 2020 RFC); `0001`, a mainline backport of the tc358743 972 Mbit/s link frequency, was dropped because 6.18 has it |
 | `patches/camera/0004–0005` | rkisp1 uses the lane count / link frequency the source reports; tc358743 gets `LINK_FREQ` and `PIXEL_RATE` |
 | `patches/camera/0006–0008` | RK3288 ISP fixes: 32-beat chroma bursts, error-interrupt storm guard, MI_CTRL reset recovery |
-| `patches/camera/0009` | rkisp1 allocates at least four capture buffers again (6.18 lowered `min_queued_buffers` to 1, and GStreamer's `v4l2src` then took only two and lost every third frame at 720p60) |
 | `patches/camera/dt/` | Tinker Board overlays: ISP + DPHY + TC358743 or OV5647 |
 | `patches/camera/edid-*.txt` | TC358743 EDIDs: 720p60 preferred (from Spotpear's guide) and 1080p50 preferred |
 | `patches/gstreamer/` | GStreamer MR !5676 (`v4l2slh264enc`) built against 1.24: UYVY input, VUI without reordering, copy into macroblock-padded buffers |
@@ -104,13 +103,12 @@ GStreamer one stops if the MR head moved.
   the encoder's minimum (4 buffers). Dropping the query (`identity
   drop-allocation=true`) leaves v4l2src with 2 buffers, and since Linux 6.14
   rkisp1 no longer rounds that up: frames are lost (720p60 at 40 fps).
-  `patches/camera/0009` makes rkisp1 allocate at least four again.
 - Tested on a single Tinker Board S only.
 
 ## Use of AI tools
 
 The patches and scripts written by ohayoyogi (h264enc 0009–0014, camera
-0002–0009, the scripts, and the rk8xx power-off patch sent to Armbian) were
+0002–0008, the scripts, and the rk8xx power-off patch sent to Armbian) were
 developed with the help of Claude Code (Anthropic); the submitter reviewed them and tested them on the
 hardware. The patches by other authors (h264enc 0001–0008, and the former
 camera 0001 backport) are not part of this.
