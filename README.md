@@ -98,8 +98,13 @@ GStreamer one stops if the MR head moved.
   frame each time. Root cause unknown.
 - The H1 encoder here has no B-frames and one reference frame; compression
   efficiency is far below software encoders.
-- `v4l2src io-mode=auto` returns stale buffers from the rkisp1 main path; use
-  `io-mode=mmap` and `identity drop-allocation=true` in front of the encoder.
+- `v4l2src io-mode=auto` returns stale buffers from the rkisp1 main path, or
+  imports the encoder's padded pool (EINVAL); use `io-mode=mmap`, and let the
+  allocation query through to the encoder so that v4l2src sizes its pool from
+  the encoder's minimum (4 buffers). Dropping the query (`identity
+  drop-allocation=true`) leaves v4l2src with 2 buffers, and since Linux 6.14
+  rkisp1 no longer rounds that up: frames are lost (720p60 at 40 fps).
+  `patches/camera/0009` makes rkisp1 allocate at least four again.
 - Tested on a single Tinker Board S only.
 
 ## Use of AI tools

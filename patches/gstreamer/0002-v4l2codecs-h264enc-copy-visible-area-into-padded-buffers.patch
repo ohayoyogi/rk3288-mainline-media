@@ -9,9 +9,9 @@ Map the destination with the visible size (the pool's video meta overrides
 the GstVideoInfo when mapping, so set it on the mapped frame too), and fix
 the unmap of the wrong frame on the error path.
 
-Note: with v4l2src, also put "identity drop-allocation=true" in front of
-the encoder, or v4l2src imports the padded pool buffers and the request is
-rejected (EINVAL).
+Note: with v4l2src, use io-mode=mmap. With the default (auto) v4l2src
+imports the padded pool buffers and the request is rejected (EINVAL);
+with mmap it pushes its own buffers and this copy path is taken.
 
 --- a/sys/v4l2codecs/gstv4l2codech264enc.c	2026-10-21 10:14:20.043875413 +0900
 +++ b/sys/v4l2codecs/gstv4l2codech264enc.c	2026-10-21 10:14:20.043875413 +0900
