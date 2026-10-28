@@ -8,9 +8,8 @@
 # Inputs (override with env vars):
 #   KVER       kernel.org version          (6.18.58)
 #   ARMBIAN    armbian/build commit or tag (needs patch/kernel/archive/rockchip-6.18). Default:
-#              the head of armbian/build#11115 (main of 2026-10-26 + the rk8xx power-off
-#              patch, without which "shutdown -h" only halts); move to a main commit once
-#              it is merged
+#              main of 2026-10-27, with the rk8xx power-off patch (armbian/build#11115),
+#              without which "shutdown -h" only halts
 #   CONFIG     kernel config               (Armbian's config/kernel/linux-rockchip-current.config;
 #              or the board's /boot/config-*, brought up to date with olddefconfig)
 #   WORK       build directory             (~/h264enc)
@@ -19,7 +18,7 @@
 set -euo pipefail
 
 KVER=${KVER:-6.18.58}
-ARMBIAN=${ARMBIAN:-5e2d401c055e6314a8ea0d9ea03a2c8e88852d73}
+ARMBIAN=${ARMBIAN:-2ca897c5ef976522ff416797426dbff560e260de}
 WORK=${WORK:-$HOME/h264enc}
 REPO=$(cd "$(dirname "$0")/.." && pwd)
 SRC=$WORK/linux-$KVER-h264enc

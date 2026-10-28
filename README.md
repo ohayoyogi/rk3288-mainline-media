@@ -61,8 +61,8 @@ were not re-measured.
 Power off: on RK3288 `shutdown -h` only halted (`Power off not available:
 System halted instead`) and every rail stayed on. The rk8xx fix for that is not
 kept here; it went to Armbian's `rockchip-6.18` / `rockchip-7.3` patch sets as
-[armbian/build#11115](https://github.com/armbian/build/pull/11115), and the
-kernel build uses that pull request's head until it is merged.
+[armbian/build#11115](https://github.com/armbian/build/pull/11115) (merged), and the
+kernel build uses the Armbian commit that merged it.
 
 ## Building and installing
 
@@ -86,8 +86,8 @@ tinker-camera.sh hdmi 1280 720 && tinker-camera.sh grab 30
 tinker-camera.sh boot-edid on   # optional: EDID (= HDMI hot-plug) at boot; no-op without a TC358743
 ```
 
-The build scripts pin their inputs (kernel 6.18.58; an Armbian commit, the head
-of armbian/build#11115 until it is merged; GStreamer MR !5676 at 9ef0e91); the
+The build scripts pin their inputs (kernel 6.18.58; an Armbian main commit with
+armbian/build#11115; GStreamer MR !5676 at 9ef0e91); the
 GStreamer one stops if the MR head moved.
 
 ## Known issues
